@@ -10,12 +10,18 @@ body{font-family:sans-serif;background-image:url(Images/BackgroundPattern.png);b
 .selector-card{background:rgba(120,220,255,0.9);border-radius:24px;padding:30px 36px;margin-bottom:30px;border:3px solid #000;box-shadow:4px 4px 0 #000}
 .selector-row{display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap}
 .vs-label{font-size:1.8rem;font-weight:bold;color:#f05a28;text-shadow:1px 1px 0 #000}
-.team-select{padding:12px 20px;font-size:1.1rem;font-weight:bold;border-radius:50px;border:3px solid #000;background:#fff;color:#333;cursor:pointer;min-width:200px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M0 0l6 8 6-8z' fill='%23333'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 16px center;padding-right:44px}
-.search-btn{padding:12px 32px;font-size:1.1rem;font-weight:bold;background:#f05a28;color:#fff;border:3px solid #000;border-radius:50px;cursor:pointer;box-shadow:3px 3px 0 #000}
+.country-select{padding:12px 20px;font-size:1.1rem;font-weight:bold;border-radius:50px;border:3px solid #000;background:#fff;color:#333;cursor:pointer;min-width:200px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M0 0l6 8 6-8z' fill='%23333'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 16px center;padding-right:44px}
+.search-btn{padding:12px 32px;font-size:1.1rem;font-weight:bold;background:#f05a28;color:#fff;border:3px solid #000;border-radius:50px;cursor:pointer;box-shadow:3px 3px 0 #000;transition:transform 0.1s,box-shadow 0.1s}
+.search-btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 #000}
+.search-btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 #000}
 .section-heading{color:#f05a28;font-size:1.4rem;font-weight:bold;margin-bottom:14px;text-shadow:1px 1px 0 #000;display:flex;align-items:center;gap:10px;justify-content:center}
 .lu-loading{text-align:center;padding:20px;color:#000;font-weight:bold}
 .lu-spinner{width:32px;height:32px;border:4px solid #000;border-top-color:#f05a28;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 10px}
 @keyframes spin{to{transform:rotate(360deg)}}
+.loading{text-align:center;padding:40px;color:#000;font-weight:bold;font-size:1.2rem}
+.loading-spinner{width:48px;height:48px;border:5px solid #000;border-top-color:#f05a28;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px}
+.error-msg{background:#ffcdb2;border:3px solid #f05a28;border-radius:16px;padding:18px 24px;color:#7a2000;font-weight:bold;text-align:center;margin-bottom:20px}
+.no-matches-msg{text-align:center;padding:30px;color:#000;font-size:1.1rem;font-weight:bold}
 </style>
 </head>
 <body>
@@ -23,17 +29,118 @@ body{font-family:sans-serif;background-image:url(Images/BackgroundPattern.png);b
 <h1 class="h2h-title">Head to Head</h1>
 <div class="selector-card">
 <div class="selector-row">
-<select class="team-select"><option>Team 1</option></select>
+<select id="country1" class="country-select">
+<option value="">Select Country 1</option>
+</select>
 <span class="vs-label">VS</span>
-<select class="team-select"><option>Team 2</option></select>
-<button class="search-btn">Compare</button>
+<select id="country2" class="country-select">
+<option value="">Select Country 2</option>
+</select>
+<button class="search-btn" onclick="fetchH2H()">Compare</button>
 </div>
 </div>
+
+<div id="loading" style="display:none;">
+<div class="loading">
+<div class="loading-spinner"></div>
+Fetching match data...
+</div>
+</div>
+
+<div id="error" class="error-msg" style="display:none;"></div>
+
+<div id="results" style="display:none;">
+</div>
+
 <div class="section-heading">Live & Upcoming</div>
-<div class="lu-loading">
+<div id="lu-loading" class="lu-loading">
 <div class="lu-spinner"></div>
 Loading matches...
 </div>
+<div id="lu-list"></div>
 </div>
+
+<script>
+async function loadCountries() {
+  const sel1 = document.getElementById("country1");
+  const sel2 = document.getElementById("country2");
+  
+  try {
+    const resp = await fetch("https://restcountries.com/v3.1/all");
+    const data = await resp.json();
+    const cricketCountries = [
+      "India", "Australia", "England", "Pakistan", "New Zealand", "South Africa", 
+      "West Indies", "Sri Lanka", "Bangladesh", "Afghanistan", "Zimbabwe", 
+      "Ireland", "Netherlands", "Scotland", "United Arab Emirates", "Oman",
+      "United States", "Canada", "Papua New Guinea", "Namibia"
+    ];
+    
+    cricketCountries.forEach(country => {
+      sel1.innerHTML += `<option value="${country}">${country}</option>`;
+      sel2.innerHTML += `<option value="${country}">${country}</option>`;
+    });
+    
+    sel1.value = "India";
+    sel2.value = "Australia";
+  } catch (e) {
+    console.error("Failed to load countries:", e);
+    sel1.innerHTML += '<option value="">Error loading countries</option>';
+  }
+}
+
+async function fetchH2H() {
+  const country1 = document.getElementById("country1").value;
+  const country2 = document.getElementById("country2").value;
+  const errEl = document.getElementById("error");
+  const loadEl = document.getElementById("loading");
+  const resEl = document.getElementById("results");
+
+  errEl.style.display = "none";
+  resEl.style.display = "none";
+  loadEl.style.display = "block";
+
+  if (!country1 || !country2) {
+    loadEl.style.display = "none";
+    errEl.textContent = "Please select both countries.";
+    errEl.style.display = "block";
+    return;
+  }
+  if (country1 === country2) {
+    loadEl.style.display = "none";
+    errEl.textContent = "Please select two different countries.";
+    errEl.style.display = "block";
+    return;
+  }
+  
+  loadEl.style.display = "none";
+  resEl.innerHTML = `
+    <div style="background:rgba(120,220,255,0.9);border-radius:24px;padding:28px 36px;margin-bottom:24px;border:3px solid #000;box-shadow:4px 4px 0 #000;text-align:center;">
+      <div style="font-size:1.3rem;font-weight:bold;color:#000;margin-bottom:20px;">
+        ${country1} vs ${country2} — Coming Soon!
+      </div>
+      <div style="color:#666;font-size:1rem;">
+        ADD THE API!! tnen itll work :)
+      </div>
+    </div>
+  `;
+  resEl.style.display = "block";
+}
+
+async function loadLiveUpcoming(silent = false) {
+  const loadEl = document.getElementById("lu-loading");
+  const listEl = document.getElementById("lu-list");
+
+  if (!silent) loadEl.style.display = "block";
+  setTimeout(() => {
+    loadEl.style.display = "none";
+    listEl.innerHTML = '<div class="no-matches-msg">No live/upcoming matches right now.</div>';
+  }, 1000);
+}
+
+loadCountries();
+loadLiveUpcoming();
+setInterval(() => loadLiveUpcoming(true), 45000);
+</script>
+
 </body>
 </html>
