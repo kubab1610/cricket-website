@@ -31,13 +31,14 @@ body.teams-page {
 }
 
 .top-bar {
+  --header-logo-width: 108px;
   width: 100%;
-  min-height: 150px;
-  display: flex;
+  min-height: 92px;
+  display: grid;
+  grid-template-columns: var(--header-logo-width) minmax(0, 1fr) var(--header-logo-width);
   align-items: center;
-  justify-content: space-between;
-  gap: 26px;
-  padding: 24px 34px 20px;
+  column-gap: 10px;
+  padding: 10px 22px 8px;
   position: relative;
   overflow: hidden;
   background:
@@ -51,10 +52,10 @@ body.teams-page {
   border: 1px solid rgba(96, 69, 41, 0.5);
   border-bottom: 4px solid rgba(86, 56, 31, 0.92);
   box-shadow:
-    0 10px 26px rgba(28, 20, 12, 0.28),
-    0 4px 0 rgba(77, 48, 25, 0.55),
+    0 8px 18px rgba(28, 20, 12, 0.16),
+    0 2px 0 rgba(77, 48, 25, 0.32),
     inset 0 1px 0 rgba(255, 252, 239, 0.72),
-    inset 0 -14px 24px rgba(112, 83, 48, 0.08);
+    inset 0 -10px 18px rgba(112, 83, 48, 0.05);
 }
 
 .top-bar > * {
@@ -71,8 +72,17 @@ body.teams-page {
   pointer-events: none;
 }
 
+.top-bar::after {
+  content: "";
+  width: var(--header-logo-width);
+  height: 1px;
+  justify-self: end;
+  visibility: hidden;
+}
+
 .logo {
-  width: 135px;
+  width: var(--header-logo-width);
+  justify-self: start;
   filter: drop-shadow(4px 6px 0 rgba(0, 0, 0, 0.32));
   transition: transform 0.18s ease, filter 0.18s ease;
   transform-origin: center;
@@ -85,7 +95,6 @@ body.teams-page {
 }
 
 .page-header-title {
-  flex: 1;
   color: #2f261c;
   font-family: "Courier New", monospace;
   font-size: clamp(1.35rem, 2.7vw, 2.15rem);
@@ -96,10 +105,10 @@ body.teams-page {
   text-shadow:
     0 1px 0 rgba(255, 250, 236, 0.35),
     0 0 1px rgba(47, 38, 28, 0.22);
-  padding: 6px 0;
-  margin-right: 12px;
-  margin-left: auto;
-  max-width: 760px;
+  line-height: 1.05;
+  padding: 0;
+  margin: 0;
+  max-width: none;
 }
 
 .nav-bar {
@@ -1309,18 +1318,22 @@ body.teams-page {
   }
 
   .top-bar {
+    display: flex;
     height: auto;
-    min-height: 150px;
+    min-height: 96px;
     flex-wrap: wrap;
     justify-content: center;
-    padding: 18px 20px;
-    gap: 12px;
+    padding: 12px 18px 10px;
+    gap: 8px;
+  }
+
+  .top-bar::after {
+    content: none;
   }
 
   .page-header-title {
     width: 100%;
-    margin-right: 0;
-    padding: 6px 0 0;
+    padding: 0;
     text-align: center;
     font-size: clamp(1.2rem, 5vw, 1.65rem);
     letter-spacing: 0.12em;
