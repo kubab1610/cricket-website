@@ -6,56 +6,54 @@
 
 body {
   font-family: Arial, sans-serif;
-  background-image: url("images/BackgroundPattern.png");
-  background-repeat: repeat;
+  background-image: url("images/bridge_background.png");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-attachment: fixed;
   min-height: 100vh;
 }
 
 body.homepage {
   background-color: #7e87c7;
-  background-size: 25%;
-}
-
-body.homepage .top-bar {
-  background-color: #eef2e8;
-  background-image:
-    linear-gradient(rgba(92, 129, 167, 0.2) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(92, 129, 167, 0.2) 1px, transparent 1px),
-    linear-gradient(rgba(50, 78, 103, 0.08) 2px, transparent 2px),
-    linear-gradient(90deg, rgba(50, 78, 103, 0.08) 2px, transparent 2px);
-  background-size: 24px 24px, 24px 24px, 120px 120px, 120px 120px;
-  background-position: 0 0, 0 0, -1px -1px, -1px -1px;
-  border-bottom: 3px solid #000;
-  padding: 18px 28px 18px 20px;
+  background-size: cover;
 }
 
 body.teams-page {
-  background-size: auto;
+  background-image: url("images/bridge_background.png");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
   background-attachment: fixed;
   margin: 0;
 }
 
-body.teams-page .top-bar {
-  background-color: #eef2e8;
-  background-image:
-    linear-gradient(rgba(92, 129, 167, 0.2) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(92, 129, 167, 0.2) 1px, transparent 1px),
-    linear-gradient(rgba(50, 78, 103, 0.08) 2px, transparent 2px),
-    linear-gradient(90deg, rgba(50, 78, 103, 0.08) 2px, transparent 2px);
-  background-size: 24px 24px, 24px 24px, 120px 120px, 120px 120px;
-  background-position: 0 0, 0 0, -1px -1px, -1px -1px;
-  border-bottom: 3px solid #000;
-  padding: 18px 28px 18px 20px;
-  gap: 24px;
-}
-
 .top-bar {
   width: 100%;
-  height: 150px;
-  background: black;
+  min-height: 150px;
   display: flex;
   align-items: center;
-  padding-left: 20px;
+  gap: 26px;
+  padding: 24px 34px 20px;
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 18% 30%, rgba(255, 248, 220, 0.42), transparent 30%),
+    radial-gradient(circle at 82% 16%, rgba(124, 88, 49, 0.08), transparent 26%),
+    radial-gradient(circle at 24% 72%, rgba(118, 87, 45, 0.07), transparent 18%),
+    linear-gradient(180deg, #f4ebd4 0%, #e8dcc0 52%, #dfd1af 100%);
+  border: 1px solid rgba(96, 69, 41, 0.5);
+  border-bottom: 4px solid rgba(86, 56, 31, 0.92);
+  box-shadow:
+    0 10px 26px rgba(28, 20, 12, 0.28),
+    0 4px 0 rgba(77, 48, 25, 0.55),
+    inset 0 1px 0 rgba(255, 252, 239, 0.72),
+    inset 0 -14px 24px rgba(112, 83, 48, 0.08);
+}
+
+.top-bar > * {
+  position: relative;
+  z-index: 2;
 }
 
 .logo {
@@ -73,15 +71,25 @@ body.teams-page .top-bar {
 
 .teams-header-title {
   flex: 1;
-  color: #111;
+  color: #2f261c;
   font-family: "Courier New", monospace;
-  font-size: clamp(1.4rem, 2.8vw, 2.3rem);
-  font-weight: bold;
-  letter-spacing: 0.04em;
+  font-size: clamp(1.35rem, 2.7vw, 2.15rem);
+  font-weight: 700;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   text-align: center;
-  text-shadow: 1px 1px 0 rgba(255, 255, 255, 0.35);
-  padding-right: 100px;
+  text-shadow:
+    0 1px 0 rgba(255, 250, 236, 0.35),
+    0 0 1px rgba(47, 38, 28, 0.22);
+  padding: 12px 28px;
+  margin-right: 48px;
+  border: 1px solid rgba(89, 63, 39, 0.18);
+  background:
+    linear-gradient(180deg, rgba(255, 249, 232, 0.18), rgba(130, 97, 58, 0.04)),
+    rgba(255, 250, 239, 0.16);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 251, 238, 0.18),
+    0 3px 8px rgba(81, 56, 30, 0.08);
 }
 
 .nav-bar {
@@ -980,8 +988,10 @@ body.teams-page .top-bar {
 
   .teams-header-title {
     width: 100%;
-    padding-right: 0;
+    margin-right: 0;
+    padding: 10px 18px;
     text-align: center;
     font-size: clamp(1.2rem, 5vw, 1.65rem);
+    letter-spacing: 0.12em;
   }
 }
