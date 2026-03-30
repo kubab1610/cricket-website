@@ -139,6 +139,7 @@ body.teams-page {
 }
 
 .hero {
+  position: relative;
   display: flex;
   flex-direction: row;
   justify-content: space-between;
@@ -146,6 +147,26 @@ body.teams-page {
   gap: 40px;
   padding: 90px 36px 18px;
   flex-wrap: wrap;
+}
+
+.hero::after {
+  content: "";
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  bottom: -54px;
+  height: 150px;
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    rgba(18, 24, 58, 0) 0%,
+    rgba(22, 29, 72, 0.56) 28%,
+    rgba(82, 56, 28, 0.64) 68%,
+    rgba(82, 56, 28, 0) 100%
+  );
+  filter: blur(24px);
+  pointer-events: none;
+  z-index: 0;
 }
 
 .hero-image {
@@ -290,6 +311,11 @@ body.teams-page {
   border: 1px solid rgba(255, 245, 223, 0.14);
   border-radius: 2px;
   pointer-events: none;
+  z-index: 2;
+}
+
+.case-board::after {
+  content: none;
 }
 
 .case-file-card {
@@ -1135,6 +1161,14 @@ body.teams-page {
     flex-direction: column;
     text-align: center;
     padding: 50px 24px 0;
+  }
+
+  .hero::after {
+    left: 8%;
+    right: 8%;
+    bottom: -34px;
+    height: 110px;
+    filter: blur(20px);
   }
 
   .hero-title {
