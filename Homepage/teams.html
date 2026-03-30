@@ -113,45 +113,6 @@
   <script>
     const TEAM_OPTIONS = ["India", "Australia", "England", "Pakistan"];
 
-    const SAMPLE_TEAM_DATA = {
-      India: {
-        matches: 152,
-        wins: 98,
-        losses: 44,
-        winRate: "64%",
-        avgScore: 168,
-        highestScore: 240,
-        sixes: 412
-      },
-      Australia: {
-        matches: 148,
-        wins: 90,
-        losses: 50,
-        winRate: "61%",
-        avgScore: 164,
-        highestScore: 229,
-        sixes: 398
-      },
-      England: {
-        matches: 145,
-        wins: 88,
-        losses: 49,
-        winRate: "61%",
-        avgScore: 171,
-        highestScore: 241,
-        sixes: 430
-      },
-      Pakistan: {
-        matches: 143,
-        wins: 84,
-        losses: 52,
-        winRate: "59%",
-        avgScore: 160,
-        highestScore: 232,
-        sixes: 365
-      }
-    };
-
     const STAT_DEFINITIONS = [
       { key: "matches", label: "Matches" },
       { key: "wins", label: "Wins" },
@@ -188,18 +149,18 @@
       }, {});
     }
 
-    function createDefaultComparison() {
+    function createDefaultComparison(teamAName = "Team A", teamBName = "Team B") {
       return {
         updatedLabel: "Updated: --",
-        summary: "Select two teams to view the comparison.",
-        notes: ["Comparison notes will appear here."],
+        summary: "Comparison data will appear here.",
+        notes: ["Notes will appear here."],
         teamA: {
-          name: "Team A",
+          name: teamAName,
           flagSrc: "",
           stats: createEmptyStats()
         },
         teamB: {
-          name: "Team B",
+          name: teamBName,
           flagSrc: "",
           stats: createEmptyStats()
         }
@@ -214,11 +175,6 @@
       }
 
       return null;
-    }
-
-    function getFlagPath(country) {
-      const slug = country.toLowerCase().replace(/\s+/g, "-");
-      return `images/flags/${slug}.png`;
     }
 
     function getStatStatus(currentValue, opponentValue) {
@@ -239,31 +195,6 @@
 
     function formatStatValue(value) {
       return value ?? "--";
-    }
-
-    function buildSampleSummary(teamAName, teamAStats, teamBName, teamBStats) {
-      const higherWinRateTeam =
-        getNumericStatValue(teamAStats.winRate) >= getNumericStatValue(teamBStats.winRate)
-          ? teamAName
-          : teamBName;
-
-      return `${teamAName} and ${teamBName} comparison overview. ${higherWinRateTeam} has the higher win rate in the current dataset.`;
-    }
-
-    function buildSampleNotes(teamAName, teamAStats, teamBName, teamBStats) {
-      const notes = [
-        `${teamAName} matches: ${teamAStats.matches}.`,
-        `${teamBName} matches: ${teamBStats.matches}.`
-      ];
-
-      if (teamAStats.highestScore !== teamBStats.highestScore) {
-        const higherScoreTeam = teamAStats.highestScore > teamBStats.highestScore ? teamAName : teamBName;
-        notes.push(`${higherScoreTeam} has the higher top score.`);
-      } else {
-        notes.push("Both teams share the same top score.");
-      }
-
-      return notes;
     }
 
     function renderStats(container, currentStats, opponentStats) {
@@ -328,6 +259,18 @@
       });
     }
 
+    // Expected data shape for renderComparison:
+    // {
+    //   updatedLabel: string, e.g. "Updated: 30-03-2026",
+    //   summary: string, e.g. "India has a stronger win rate, while England leads in average score."
+    //   notes: string[],  An array of the auto-generated insights, e.g. "India has won 64%.. England has higher average..."
+    //   teamA: { name: string, flagSrc: string, stats: object },
+    //   teamB: { name: string, flagSrc: string, stats: object }, 
+    //   
+    //   flagSrc is the path to the flag image like images/flags/england.png
+    //   stats is the literal statistics of the team. As can be seen in the function STAT_DEFINITIONS.
+    //   
+    // }
     function renderComparison(comparisonData) {
       const data = comparisonData || createDefaultComparison();
 
@@ -361,31 +304,6 @@
         data.teamA.stats || createEmptyStats()
       );
       renderNotes(data.notes && data.notes.length ? data.notes : ["No notes available."]);
-    }
-
-    function buildSampleComparison(teamAName, teamBName) {
-      const teamAStats = SAMPLE_TEAM_DATA[teamAName];
-      const teamBStats = SAMPLE_TEAM_DATA[teamBName];
-
-      if (!teamAStats || !teamBStats) {
-        throw new Error("Comparison data is not available for the selected teams.");
-      }
-
-      return {
-        updatedLabel: `Updated: ${new Date().toLocaleDateString("en-GB")}`,
-        summary: buildSampleSummary(teamAName, teamAStats, teamBName, teamBStats),
-        notes: buildSampleNotes(teamAName, teamAStats, teamBName, teamBStats),
-        teamA: {
-          name: teamAName,
-          flagSrc: getFlagPath(teamAName),
-          stats: teamAStats
-        },
-        teamB: {
-          name: teamBName,
-          flagSrc: getFlagPath(teamBName),
-          stats: teamBStats
-        }
-      };
     }
 
     function loadCountries() {
@@ -427,8 +345,8 @@
       PAGE_ELEMENTS.loading.style.display = "block";
 
       try {
-        // Replace buildSampleComparison with an API request that returns the same shape.
-        const comparisonData = await Promise.resolve(buildSampleComparison(teamAName, teamBName));
+        // Replace this placeholder with an API request that returns the shape used by renderComparison(data).
+        const comparisonData = await Promise.resolve(createDefaultComparison(teamAName, teamBName));
         renderComparison(comparisonData);
       } catch (error) {
         PAGE_ELEMENTS.error.textContent = error.message || "Unable to load comparison data.";
