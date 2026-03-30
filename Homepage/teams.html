@@ -22,22 +22,22 @@
   <div class="page">
     <div class="container h2h-container">
       <div class="selector-card">
-        <div class="selector-stamp">Investigation Intake</div>
-        <p class="selector-note">Pull two team files from the archive and compare the evidence side by side.</p>
+        <div class="selector-stamp">Team Comparison</div>
+        <p class="selector-note">Choose two teams to compare.</p>
         <div class="selector-row">
           <label class="selector-field">
-            <span class="selector-label">Team File A</span>
+            <span class="selector-label">Team A</span>
             <select id="country1" class="country-select">
-              <option value="">Select Country 1</option>
+              <option value="">Select Team A</option>
             </select>
           </label>
 
           <span class="vs-label">VS</span>
 
           <label class="selector-field">
-            <span class="selector-label">Team File B</span>
+            <span class="selector-label">Team B</span>
             <select id="country2" class="country-select">
-              <option value="">Select Country 2</option>
+              <option value="">Select Team B</option>
             </select>
           </label>
 
@@ -48,25 +48,72 @@
       <div id="loading" style="display:none;">
         <div class="loading">
           <div class="loading-spinner"></div>
-          Fetching match data...
+          Loading comparison...
         </div>
       </div>
 
       <div id="error" class="error-msg" style="display:none;"></div>
 
-      <div id="results" style="display:none;"></div>
+      <div id="results">
+        <div class="result-card">
+          <div class="result-header">
+            <div class="file-stamp">Comparison</div>
+            <div id="comparison-title" class="result-title">Team A vs Team B</div>
+            <div class="file-meta">
+              <span id="comparison-updated">Updated: --</span>
+            </div>
+          </div>
 
-      <div class="section-heading">Live & Upcoming</div>
-      <div id="lu-loading" class="lu-loading">
-        <div class="lu-spinner"></div>
-        Loading matches...
+          <div class="case-summary">
+            <div class="case-summary-label">Summary</div>
+            <p id="comparison-summary">Select two teams to view the comparison.</p>
+          </div>
+
+          <div class="comparison-grid">
+            <div class="team-stat-card">
+              <div class="file-tab">Team A</div>
+              <div class="flag-polaroid">
+                <div class="polaroid-tape polaroid-tape-left"></div>
+                <div class="polaroid-tape polaroid-tape-right"></div>
+                <div class="flag-frame">
+                  <img id="team-a-flag" alt="Team A flag" style="display:none;">
+                  <div id="team-a-flag-placeholder" class="flag-placeholder" style="display:flex;">Team A flag</div>
+                </div>
+                <div class="flag-caption">Flag</div>
+              </div>
+              <h3 id="team-a-name">Team A</h3>
+              <div id="team-a-stats" class="stat-list"></div>
+            </div>
+
+            <div class="team-stat-card">
+              <div class="file-tab">Team B</div>
+              <div class="flag-polaroid">
+                <div class="polaroid-tape polaroid-tape-left"></div>
+                <div class="polaroid-tape polaroid-tape-right"></div>
+                <div class="flag-frame">
+                  <img id="team-b-flag" alt="Team B flag" style="display:none;">
+                  <div id="team-b-flag-placeholder" class="flag-placeholder" style="display:flex;">Team B flag</div>
+                </div>
+                <div class="flag-caption">Flag</div>
+              </div>
+              <h3 id="team-b-name">Team B</h3>
+              <div id="team-b-stats" class="stat-list"></div>
+            </div>
+          </div>
+
+          <div class="case-notes">
+            <h3>Notes</h3>
+            <ul id="case-notes-list"></ul>
+          </div>
+        </div>
       </div>
-      <div id="lu-list"></div>
     </div>
   </div>
 
   <script>
-    const mockTeamData = {
+    const TEAM_OPTIONS = ["India", "Australia", "England", "Pakistan"];
+
+    const SAMPLE_TEAM_DATA = {
       India: {
         matches: 152,
         wins: 98,
@@ -105,8 +152,8 @@
       }
     };
 
-    const statDefinitions = [
-      { key: "matches", label: "Matches Logged" },
+    const STAT_DEFINITIONS = [
+      { key: "matches", label: "Matches" },
       { key: "wins", label: "Wins" },
       { key: "losses", label: "Losses" },
       { key: "winRate", label: "Win Rate" },
@@ -115,9 +162,58 @@
       { key: "sixes", label: "Sixes" }
     ];
 
-    function getStatValue(team, key) {
-      const value = team[key];
-      return typeof value === "string" ? parseInt(value, 10) : value;
+    const PAGE_ELEMENTS = {
+      country1: document.getElementById("country1"),
+      country2: document.getElementById("country2"),
+      loading: document.getElementById("loading"),
+      error: document.getElementById("error"),
+      comparisonTitle: document.getElementById("comparison-title"),
+      comparisonUpdated: document.getElementById("comparison-updated"),
+      comparisonSummary: document.getElementById("comparison-summary"),
+      teamAName: document.getElementById("team-a-name"),
+      teamAFlag: document.getElementById("team-a-flag"),
+      teamAFlagPlaceholder: document.getElementById("team-a-flag-placeholder"),
+      teamAStats: document.getElementById("team-a-stats"),
+      teamBName: document.getElementById("team-b-name"),
+      teamBFlag: document.getElementById("team-b-flag"),
+      teamBFlagPlaceholder: document.getElementById("team-b-flag-placeholder"),
+      teamBStats: document.getElementById("team-b-stats"),
+      caseNotesList: document.getElementById("case-notes-list")
+    };
+
+    function createEmptyStats() {
+      return STAT_DEFINITIONS.reduce((stats, { key }) => {
+        stats[key] = null;
+        return stats;
+      }, {});
+    }
+
+    function createDefaultComparison() {
+      return {
+        updatedLabel: "Updated: --",
+        summary: "Select two teams to view the comparison.",
+        notes: ["Comparison notes will appear here."],
+        teamA: {
+          name: "Team A",
+          flagSrc: "",
+          stats: createEmptyStats()
+        },
+        teamB: {
+          name: "Team B",
+          flagSrc: "",
+          stats: createEmptyStats()
+        }
+      };
+    }
+
+    function getNumericStatValue(value) {
+      if (typeof value === "number") return value;
+      if (typeof value === "string") {
+        const parsedValue = parseFloat(value);
+        return Number.isNaN(parsedValue) ? null : parsedValue;
+      }
+
+      return null;
     }
 
     function getFlagPath(country) {
@@ -125,226 +221,226 @@
       return `images/flags/${slug}.png`;
     }
 
-    function buildTeamCard(country, team, opponent) {
-      const statRows = statDefinitions.map(({ key, label }) => {
-        const currentValue = getStatValue(team, key);
-        const opponentValue = getStatValue(opponent, key);
-        const status =
-          currentValue > opponentValue
-            ? { className: "is-leading", tag: "Lead" }
-            : currentValue < opponentValue
-              ? { className: "is-trailing", tag: "Trail" }
-              : { className: "is-even", tag: "Even" };
-
-        return `
-          <div class="stat-row ${status.className}">
-            <span class="stat-label">${label}</span>
-            <span class="stat-value">${team[key]}</span>
-            <span class="stat-tag">${status.tag}</span>
-          </div>
-        `;
-      }).join("");
-
-      return `
-        <div class="team-stat-card">
-          <div class="file-tab">Evidence Sheet</div>
-          <div class="flag-polaroid">
-            <div class="polaroid-tape polaroid-tape-left"></div>
-            <div class="polaroid-tape polaroid-tape-right"></div>
-            <div class="flag-frame">
-              <img
-                src="${getFlagPath(country)}"
-                alt="${country} flag"
-                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-              >
-              <div class="flag-placeholder">${country} flag</div>
-            </div>
-            <div class="flag-caption">Filed under ${country}</div>
-          </div>
-          <h3>${country}</h3>
-          <div class="stat-list">
-            ${statRows}
-          </div>
-        </div>
-      `;
-    }
-
-    function buildVerdict(country1, team1, country2, team2) {
-      let country1Edges = 0;
-      let country2Edges = 0;
-
-      statDefinitions.forEach(({ key }) => {
-        const team1Value = getStatValue(team1, key);
-        const team2Value = getStatValue(team2, key);
-
-        if (team1Value > team2Value) country1Edges += 1;
-        if (team2Value > team1Value) country2Edges += 1;
-      });
-
-      if (country1Edges > country2Edges) {
-        return {
-          headline: `${country1} holds the stronger case file.`,
-          detail: `${country1} leads ${country2} in ${country1Edges} of ${statDefinitions.length} tracked categories.`
-        };
+    function getStatStatus(currentValue, opponentValue) {
+      if (currentValue === null || opponentValue === null) {
+        return { className: "is-even", tag: "--" };
       }
 
-      if (country2Edges > country1Edges) {
-        return {
-          headline: `${country2} holds the stronger case file.`,
-          detail: `${country2} leads ${country1} in ${country2Edges} of ${statDefinitions.length} tracked categories.`
-        };
+      if (currentValue > opponentValue) {
+        return { className: "is-leading", tag: "Lead" };
+      }
+
+      if (currentValue < opponentValue) {
+        return { className: "is-trailing", tag: "Trail" };
+      }
+
+      return { className: "is-even", tag: "Even" };
+    }
+
+    function formatStatValue(value) {
+      return value ?? "--";
+    }
+
+    function buildSampleSummary(teamAName, teamAStats, teamBName, teamBStats) {
+      const higherWinRateTeam =
+        getNumericStatValue(teamAStats.winRate) >= getNumericStatValue(teamBStats.winRate)
+          ? teamAName
+          : teamBName;
+
+      return `${teamAName} and ${teamBName} comparison overview. ${higherWinRateTeam} has the higher win rate in the current dataset.`;
+    }
+
+    function buildSampleNotes(teamAName, teamAStats, teamBName, teamBStats) {
+      const notes = [
+        `${teamAName} matches: ${teamAStats.matches}.`,
+        `${teamBName} matches: ${teamBStats.matches}.`
+      ];
+
+      if (teamAStats.highestScore !== teamBStats.highestScore) {
+        const higherScoreTeam = teamAStats.highestScore > teamBStats.highestScore ? teamAName : teamBName;
+        notes.push(`${higherScoreTeam} has the higher top score.`);
+      } else {
+        notes.push("Both teams share the same top score.");
+      }
+
+      return notes;
+    }
+
+    function renderStats(container, currentStats, opponentStats) {
+      container.innerHTML = "";
+
+      STAT_DEFINITIONS.forEach(({ key, label }) => {
+        const statRow = document.createElement("div");
+        const statLabel = document.createElement("span");
+        const statValue = document.createElement("span");
+        const statTag = document.createElement("span");
+        const currentValue = getNumericStatValue(currentStats[key]);
+        const opponentValue = getNumericStatValue(opponentStats[key]);
+        const status = getStatStatus(currentValue, opponentValue);
+
+        statRow.className = `stat-row ${status.className}`;
+        statLabel.className = "stat-label";
+        statValue.className = "stat-value";
+        statTag.className = "stat-tag";
+
+        statLabel.textContent = label;
+        statValue.textContent = formatStatValue(currentStats[key]);
+        statTag.textContent = status.tag;
+
+        statRow.appendChild(statLabel);
+        statRow.appendChild(statValue);
+        statRow.appendChild(statTag);
+        container.appendChild(statRow);
+      });
+    }
+
+    function renderFlag(imageElement, placeholderElement, teamName, flagSrc) {
+      imageElement.style.display = "none";
+      imageElement.removeAttribute("src");
+      imageElement.alt = `${teamName} flag`;
+      placeholderElement.textContent = `${teamName} flag`;
+      placeholderElement.style.display = "flex";
+
+      if (!flagSrc) {
+        return;
+      }
+
+      imageElement.onload = () => {
+        imageElement.style.display = "block";
+        placeholderElement.style.display = "none";
+      };
+
+      imageElement.onerror = () => {
+        imageElement.style.display = "none";
+        placeholderElement.style.display = "flex";
+      };
+
+      imageElement.src = flagSrc;
+    }
+
+    function renderNotes(notes) {
+      PAGE_ELEMENTS.caseNotesList.innerHTML = "";
+
+      notes.forEach((note) => {
+        const noteItem = document.createElement("li");
+        noteItem.textContent = note;
+        PAGE_ELEMENTS.caseNotesList.appendChild(noteItem);
+      });
+    }
+
+    function renderComparison(comparisonData) {
+      const data = comparisonData || createDefaultComparison();
+
+      PAGE_ELEMENTS.comparisonTitle.textContent = `${data.teamA.name} vs ${data.teamB.name}`;
+      PAGE_ELEMENTS.comparisonUpdated.textContent = data.updatedLabel || "Updated: --";
+      PAGE_ELEMENTS.comparisonSummary.textContent = data.summary || "Comparison summary unavailable.";
+      PAGE_ELEMENTS.teamAName.textContent = data.teamA.name;
+      PAGE_ELEMENTS.teamBName.textContent = data.teamB.name;
+
+      renderFlag(
+        PAGE_ELEMENTS.teamAFlag,
+        PAGE_ELEMENTS.teamAFlagPlaceholder,
+        data.teamA.name,
+        data.teamA.flagSrc
+      );
+      renderFlag(
+        PAGE_ELEMENTS.teamBFlag,
+        PAGE_ELEMENTS.teamBFlagPlaceholder,
+        data.teamB.name,
+        data.teamB.flagSrc
+      );
+
+      renderStats(
+        PAGE_ELEMENTS.teamAStats,
+        data.teamA.stats || createEmptyStats(),
+        data.teamB.stats || createEmptyStats()
+      );
+      renderStats(
+        PAGE_ELEMENTS.teamBStats,
+        data.teamB.stats || createEmptyStats(),
+        data.teamA.stats || createEmptyStats()
+      );
+      renderNotes(data.notes && data.notes.length ? data.notes : ["No notes available."]);
+    }
+
+    function buildSampleComparison(teamAName, teamBName) {
+      const teamAStats = SAMPLE_TEAM_DATA[teamAName];
+      const teamBStats = SAMPLE_TEAM_DATA[teamBName];
+
+      if (!teamAStats || !teamBStats) {
+        throw new Error("Comparison data is not available for the selected teams.");
       }
 
       return {
-        headline: "This file stays open. No clear edge yet.",
-        detail: `${country1} and ${country2} split the current evidence evenly.`
+        updatedLabel: `Updated: ${new Date().toLocaleDateString("en-GB")}`,
+        summary: buildSampleSummary(teamAName, teamAStats, teamBName, teamBStats),
+        notes: buildSampleNotes(teamAName, teamAStats, teamBName, teamBStats),
+        teamA: {
+          name: teamAName,
+          flagSrc: getFlagPath(teamAName),
+          stats: teamAStats
+        },
+        teamB: {
+          name: teamBName,
+          flagSrc: getFlagPath(teamBName),
+          stats: teamBStats
+        }
       };
     }
 
     function loadCountries() {
-      const sel1 = document.getElementById("country1");
-      const sel2 = document.getElementById("country2");
+      TEAM_OPTIONS.forEach((teamName) => {
+        const optionA = document.createElement("option");
+        const optionB = document.createElement("option");
 
-      const cricketCountries = ["India", "Australia", "England", "Pakistan"];
+        optionA.value = teamName;
+        optionA.textContent = teamName;
+        optionB.value = teamName;
+        optionB.textContent = teamName;
 
-      cricketCountries.forEach((country) => {
-        const option1 = document.createElement("option");
-        option1.value = country;
-        option1.textContent = country;
-        sel1.appendChild(option1);
-
-        const option2 = document.createElement("option");
-        option2.value = country;
-        option2.textContent = country;
-        sel2.appendChild(option2);
+        PAGE_ELEMENTS.country1.appendChild(optionA);
+        PAGE_ELEMENTS.country2.appendChild(optionB);
       });
 
-      sel1.value = "India";
-      sel2.value = "Australia";
+      PAGE_ELEMENTS.country1.value = "India";
+      PAGE_ELEMENTS.country2.value = "Australia";
     }
 
-    function fetchH2H() {
-      const country1 = document.getElementById("country1").value;
-      const country2 = document.getElementById("country2").value;
-      const errEl = document.getElementById("error");
-      const loadEl = document.getElementById("loading");
-      const resEl = document.getElementById("results");
+    async function fetchH2H() {
+      const teamAName = PAGE_ELEMENTS.country1.value;
+      const teamBName = PAGE_ELEMENTS.country2.value;
 
-      errEl.style.display = "none";
-      resEl.style.display = "none";
-      loadEl.style.display = "block";
+      PAGE_ELEMENTS.error.style.display = "none";
 
-      if (!country1 || !country2) {
-        loadEl.style.display = "none";
-        errEl.textContent = "Please select both countries.";
-        errEl.style.display = "block";
+      if (!teamAName || !teamBName) {
+        PAGE_ELEMENTS.error.textContent = "Please select both teams.";
+        PAGE_ELEMENTS.error.style.display = "block";
         return;
       }
 
-      if (country1 === country2) {
-        loadEl.style.display = "none";
-        errEl.textContent = "Please select two different countries.";
-        errEl.style.display = "block";
+      if (teamAName === teamBName) {
+        PAGE_ELEMENTS.error.textContent = "Please select two different teams.";
+        PAGE_ELEMENTS.error.style.display = "block";
         return;
       }
 
-      const team1 = mockTeamData[country1];
-      const team2 = mockTeamData[country2];
+      PAGE_ELEMENTS.loading.style.display = "block";
 
-      setTimeout(() => {
-        loadEl.style.display = "none";
-
-        if (!team1 || !team2) {
-          errEl.textContent = "Mock stats are not available for one or both selected teams yet.";
-          errEl.style.display = "block";
-          return;
-        }
-
-        const verdict = buildVerdict(country1, team1, country2, team2);
-        const filedOn = new Date().toLocaleDateString("en-GB", {
-          day: "2-digit",
-          month: "short",
-          year: "numeric"
-        });
-        const notes = [];
-
-        if (team1.matches > team2.matches) {
-          notes.push(`${country1} has played more total matches than ${country2}.`);
-        } else if (team2.matches > team1.matches) {
-          notes.push(`${country2} has played more total matches than ${country1}.`);
-        } else {
-          notes.push(`${country1} and ${country2} have played the same number of matches.`);
-        }
-
-        if (parseInt(team1.winRate) > parseInt(team2.winRate)) {
-          notes.push(`${country1} has the higher win rate.`);
-        } else if (parseInt(team2.winRate) > parseInt(team1.winRate)) {
-          notes.push(`${country2} has the higher win rate.`);
-        } else {
-          notes.push(`${country1} and ${country2} have the same win rate.`);
-        }
-
-        if (team1.highestScore > team2.highestScore) {
-          notes.push(`${country1} has the higher top score.`);
-        } else if (team2.highestScore > team1.highestScore) {
-          notes.push(`${country2} has the higher top score.`);
-        } else {
-          notes.push(`${country1} and ${country2} have the same highest score.`);
-        }
-
-        notes.push("This comparison uses mock StatBat dossier data while the live stats feed is still under investigation.");
-
-        resEl.innerHTML = `
-          <div class="result-card">
-            <div class="result-header">
-              <div class="file-stamp">Case File</div>
-              <div class="result-title">${country1} vs ${country2}</div>
-              <div class="file-meta">
-                <span>Filed: ${filedOn}</span>
-                <span>Status: Mock Dossier</span>
-              </div>
-            </div>
-
-            <div class="case-summary">
-              <div class="case-summary-label">Lead Investigator's Read</div>
-              <p>${verdict.headline}</p>
-              <span>${verdict.detail}</span>
-            </div>
-
-            <div class="comparison-grid">
-              ${buildTeamCard(country1, team1, team2)}
-              ${buildTeamCard(country2, team2, team1)}
-            </div>
-
-            <div class="case-notes">
-              <h3>Case Notes</h3>
-              <ul>
-                ${notes.map((note) => `<li>${note}</li>`).join("")}
-              </ul>
-            </div>
-          </div>
-        `;
-
-        resEl.style.display = "block";
-      }, 500);
-    }
-
-    function loadLiveUpcoming(silent = false) {
-      const loadEl = document.getElementById("lu-loading");
-      const listEl = document.getElementById("lu-list");
-
-      if (!silent) loadEl.style.display = "block";
-
-      setTimeout(() => {
-        loadEl.style.display = "none";
-        listEl.innerHTML = '<div class="no-matches-msg">No live/upcoming matches right now.</div>';
-      }, 1000);
+      try {
+        // Replace buildSampleComparison with an API request that returns the same shape.
+        const comparisonData = await Promise.resolve(buildSampleComparison(teamAName, teamBName));
+        renderComparison(comparisonData);
+      } catch (error) {
+        PAGE_ELEMENTS.error.textContent = error.message || "Unable to load comparison data.";
+        PAGE_ELEMENTS.error.style.display = "block";
+      } finally {
+        PAGE_ELEMENTS.loading.style.display = "none";
+      }
     }
 
     loadCountries();
+    renderComparison(createDefaultComparison());
     fetchH2H();
-    loadLiveUpcoming();
-    setInterval(() => loadLiveUpcoming(true), 45000);
   </script>
 </body>
 </html>
