@@ -1232,6 +1232,20 @@ body.teams-page {
 }
 
 @media (max-width: 700px) {
+  .nav-bar {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    padding: 10px 14px;
+  }
+
+  .nav-bar a {
+    flex: 1 1 calc(50% - 10px);
+    min-width: 0;
+    width: 100%;
+    max-width: 240px;
+  }
+
   .selector-card {
     padding: 24px 20px;
   }
@@ -1337,5 +1351,12 @@ body.teams-page {
     text-align: center;
     font-size: clamp(1.2rem, 5vw, 1.65rem);
     letter-spacing: 0.12em;
+  }
+}
+
+@media (max-width: 480px) {
+  .nav-bar a {
+    flex-basis: 100%;
+    max-width: 320px;
   }
 }
