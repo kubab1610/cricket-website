@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@700&display=swap");
+
 * {
   margin: 0;
   padding: 0;
@@ -111,6 +113,7 @@ body.teams-page {
 
 .nav-bar a {
   color: #fff;
+  font-family: "Poppins", "Segoe UI", Arial, sans-serif;
   text-decoration: none;
   font-weight: bold;
   padding: 8px 16px;
@@ -201,6 +204,7 @@ body.teams-page {
 
 .hero-title h1 {
   color: #f05a28;
+  font-family: "Poppins", "Segoe UI", Arial, sans-serif;
   font-size: 2.4rem;
   line-height: 1.1;
   font-weight: bold;
@@ -586,6 +590,7 @@ body.teams-page {
 }
 
 .country-select {
+  font-family: "Poppins", "Segoe UI", Arial, sans-serif;
   padding: 12px 20px;
   padding-right: 44px;
   font-size: 1.1rem;
@@ -601,6 +606,10 @@ body.teams-page {
   background-repeat: no-repeat;
   background-position: right 16px center;
   box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.08);
+}
+
+.country-select option {
+  font-family: "Poppins", "Segoe UI", Arial, sans-serif;
 }
 
 .country-select:hover {
