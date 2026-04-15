@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StatBat - Team Investigation</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* ── MATCHES SECTION ── */
+    .matches-section {
+      margin: 32px 0 0;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+
+    .section-stamp {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-family: "Courier New", monospace;
+      font-size: 0.72rem;
+      font-weight: bold;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #fff;
+      background: #f05a28;
+      border: 2px solid #b83c10;
+      border-radius: 3px;
+      padding: 4px 12px;
+    }
+
+    .live-dot {
+      width: 7px;
+      height: 7px;
+      background: #fff;
+      border-radius: 50%;
+      animation: livepulse 1.1s infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes livepulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.25; }
+    }
+
+    .refresh-btn {
+      font-family: "Courier New", monospace;
+      font-size: 0.75rem;
+      color: #6b5233;
+      background: transparent;
+      border: 1px solid rgba(96, 69, 41, 0.35);
+      border-radius: 4px;
+      padding: 5px 12px;
+      cursor: pointer;
+      margin-left: auto;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+
+    .refresh-btn:hover { background: rgba(240,90,40,0.08); color:#f05a28; border-color:#f05a28; }
+
+    .last-updated {
+      font-family: "Courier New", monospace;
+      font-size: 0.72rem;
+      color: #9e8060;
+      margin-left: 8px;
+    }
+
+    /* Group labels */
+    .match-group-label {
+      font-family: "Courier New", monospace;
+      font-size: 0.72rem;
+      font-weight: bold;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #6b5233;
+      border-bottom: 1px solid rgba(140,100,55,0.25);
+      padding-bottom: 6px;
+      margin: 20px 0 12px;
+    }
+
+    .match-group-label.live-label { color: #c03010; }
+
+    /* Match grid */
+    .matches-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+      gap: 14px;
+    }
+
+    /* Match card */
+    .match-card {
+      background: rgba(255, 252, 240, 0.97);
+      border: 1.5px solid rgba(96, 69, 41, 0.32);
+      border-radius: 4px;
+      padding: 16px 18px;
+      box-shadow: 3px 3px 0 rgba(60,40,20,0.12);
+      cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.1s;
+      position: relative;
+    }
+
+    .match-card:hover { transform: translate(-1px,-1px); box-shadow: 5px 5px 0 rgba(60,40,20,0.16); }
+
+    .match-card.live-card { border-color: rgba(240,90,40,0.45); background: rgba(255,248,243,0.97); }
+    .match-card.completed-card { opacity: 0.88; }
+
+    .match-card-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-family: "Courier New", monospace;
+      font-size: 0.63rem;
+      font-weight: bold;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      border-radius: 2px;
+      padding: 2px 7px;
+      margin-bottom: 9px;
+    }
+
+    .badge-live { background: #f05a28; color:#fff; }
+    .badge-upcoming { background: #4a7db5; color:#fff; }
+    .badge-completed { background: #5a7a50; color:#fff; }
+
+    .match-card-title {
+      font-family: "Courier New", monospace;
+      font-size: 0.87rem;
+      font-weight: bold;
+      color: #2f261c;
+      line-height: 1.35;
+      margin-bottom: 6px;
+    }
+
+    .match-card-status {
+      font-family: "Courier New", monospace;
+      font-size: 0.76rem;
+      color: #6b5233;
+      margin-bottom: 4px;
+    }
+
+    .match-card-score-inline {
+      font-family: "Courier New", monospace;
+      font-size: 1.05rem;
+      font-weight: bold;
+      color: #2f261c;
+      margin-top: 8px;
+    }
+
+    .match-card-update-inline {
+      font-family: "Courier New", monospace;
+      font-size: 0.75rem;
+      color: #2f261c;
+      background: rgba(240,90,40,0.07);
+      border-left: 3px solid #f05a28;
+      padding: 5px 9px;
+      margin-top: 8px;
+      border-radius: 0 3px 3px 0;
+    }
+
+    .match-card-runrate {
+      font-family: "Courier New", monospace;
+      font-size: 0.74rem;
+      color: #6b5233;
+      margin-top: 3px;
+    }
+
+    .match-card-fetching {
+      font-family: "Courier New", monospace;
+      font-size: 0.75rem;
+      color: #9e8060;
+      margin-top: 8px;
+    }
+
+    .match-card-btn {
+      font-family: "Courier New", monospace;
+      font-size: 0.73rem;
+      font-weight: bold;
+      color: #f05a28;
+      background: transparent;
+      border: 1px solid #f05a28;
+      border-radius: 3px;
+      padding: 4px 10px;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .match-card-btn:hover { background: #f05a28; color:#fff; }
+
+    .match-card-start-time {
+      font-family: "Courier New", monospace;
+      font-size: 0.82rem;
+      color: #2f261c;
+      margin-top: 8px;
+    }
+
+    .match-countdown {
+      font-family: "Courier New", monospace;
+      font-size: 0.75rem;
+      font-weight: bold;
+      color: #fff;
+      background: #4a7db5;
+      border-radius: 3px;
+      padding: 3px 9px;
+      display: inline-block;
+      margin-top: 5px;
+    }
+
+    /* Loading state */
+    .matches-loading {
+      font-family: "Courier New", monospace;
+      font-size: 0.88rem;
+      color: #6b5233;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 20px 0;
+    }
+
+    .matches-error {
+      font-family: "Courier New", monospace;
+      font-size: 0.88rem;
+      color: #7a2020;
+      background: rgba(200,40,30,0.06);
+      border-left: 3px solid #c02020;
+      padding: 12px 16px;
+      border-radius: 0 4px 4px 0;
+    }
+
+    /* Divider */
+    .divider-line {
+      border: none;
+      border-top: 2px dashed rgba(140,100,55,0.22);
+      margin: 36px 0;
+    }
+
+    /* Format toggle */
+    .format-toggle {
+      display: inline-flex;
+      gap: 0;
+      border: 1.5px solid rgba(96,69,41,0.35);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .fmt-btn {
+      font-family: "Courier New", monospace;
+      font-size: 0.75rem;
+      font-weight: bold;
+      letter-spacing: 0.08em;
+      background: transparent;
+      border: none;
+      border-right: 1px solid rgba(96,69,41,0.3);
+      padding: 5px 14px;
+      cursor: pointer;
+      color: #6b5233;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .fmt-btn:last-child { border-right: none; }
+    .fmt-btn:hover { background: rgba(240,90,40,0.1); color: #f05a28; }
+    .fmt-btn.fmt-active { background: #f05a28; color: #fff; }
+
+    /* Predicted winner banner */
+    .verdict-banner {
+      margin: 22px 0 10px;
+      padding: 14px 20px;
+      background: rgba(255, 252, 240, 0.97);
+      border: 2px solid rgba(96,69,41,0.4);
+      border-radius: 4px;
+      box-shadow: 3px 3px 0 rgba(60,40,20,0.1);
+      font-family: "Courier New", monospace;
+    }
+
+    .verdict-label {
+      font-size: 0.66rem;
+      font-weight: bold;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #9e8060;
+      margin-bottom: 6px;
+    }
+
+    .verdict-team {
+      font-size: 1.15rem;
+      font-weight: bold;
+      color: #2f261c;
+    }
+
+    .verdict-detail {
+      font-size: 0.78rem;
+      color: #6b5233;
+      margin-top: 4px;
+    }
+
+    .verdict-even {
+      color: #4a7db5;
+    }
+
+    /* Source note */
+    .source-note {
+      font-family: "Courier New", monospace;
+      font-size: 0.67rem;
+      color: #b09070;
+      text-align: right;
+      margin-top: 10px;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body class="teams-page">
+  <header class="top-bar">
+    <img src="images/Logo.png" class="logo" alt="StatBat logo">
+    <div class="page-header-title">StatBat | Team Investigation</div>
+  </header>
+
+  <nav class="nav-bar">
+    <a href="index.html">Home</a>
+    <a href="teams.html">Teams</a>
+    <a href="players.html">Players</a>
+    <a href="leagues.html">Leagues</a>
+  </nav>
+
+  <div class="page">
+    <div class="container h2h-container">
+
+      <!-- ── MATCHES FROM API ── -->
+      <div class="matches-section">
+        <div class="section-header">
+          <div class="section-stamp">
+            <span class="live-dot"></span>
+            Today's Matches
+          </div>
+          <span class="last-updated" id="last-updated"></span>
+          <button class="refresh-btn" onclick="loadMatches()">↻ Refresh</button>
+        </div>
+
+        <div id="matches-loading" class="matches-loading">
+          <div class="loading-spinner" style="width:18px;height:18px;border-width:3px;flex-shrink:0;"></div>
+          Pulling match intel from the field&hellip;
+        </div>
+
+        <div id="matches-error" class="matches-error" style="display:none;"></div>
+        <div id="matches-content" style="display:none;"></div>
+      </div>
+
+      <hr class="divider-line">
+
+      <!-- ── HEAD TO HEAD ── -->
+      <div class="selector-card">
+        <div class="selector-stamp">Head-to-Head Comparison</div>
+        <p class="selector-note">Choose two teams and a format to compare their head-to-head record.</p>
+        <div class="selector-row">
+          <label class="selector-field">
+            <span class="selector-label">Team A</span>
+            <select id="country1" class="country-select"></select>
+          </label>
+          <span class="vs-label">VS</span>
+          <label class="selector-field">
+            <span class="selector-label">Team B</span>
+            <select id="country2" class="country-select"></select>
+          </label>
+        </div>
+        <div class="selector-row" style="margin-top:12px;align-items:center;gap:10px;">
+          <span class="selector-label" style="white-space:nowrap;">Format:</span>
+          <div class="format-toggle">
+            <button class="fmt-btn fmt-active" data-fmt="odi">ODI</button>
+            <button class="fmt-btn" data-fmt="t20">T20I</button>
+            <button class="fmt-btn" data-fmt="test">Test</button>
+          </div>
+          <button class="search-btn" onclick="fetchH2H()" style="margin-left:auto;">Compare</button>
+        </div>
+      </div>
+
+      <div id="loading" style="display:none;">
+        <div class="loading">
+          <div class="loading-spinner"></div>
+          Loading comparison...
+        </div>
+      </div>
+
+      <div id="error" class="error-msg" style="display:none;"></div>
+
+      <div id="results">
+        <div class="result-card">
+          <div class="result-header">
+            <div class="file-stamp">Comparison</div>
+            <div id="comparison-title" class="result-title">Team A vs Team B</div>
+            <div class="file-meta"><span id="comparison-updated">Updated: --</span></div>
+          </div>
+          <div class="case-summary">
+            <div class="case-summary-label">Summary</div>
+            <p id="comparison-summary">Select two teams to view the comparison.</p>
+          </div>
+
+          <div id="verdict-banner" class="verdict-banner" style="display:none;">
+            <div class="verdict-label">Predicted Winner</div>
+            <div id="verdict-team" class="verdict-team">--</div>
+            <div id="verdict-detail" class="verdict-detail"></div>
+          </div>
+
+          <div class="comparison-grid">
+            <div class="team-stat-card">
+              <div class="file-tab">Team A</div>
+              <div class="flag-polaroid">
+                <div class="polaroid-tape polaroid-tape-left"></div>
+                <div class="polaroid-tape polaroid-tape-right"></div>
+                <div class="flag-frame">
+                  <img id="team-a-flag" alt="Team A flag" style="display:none;">
+                  <div id="team-a-flag-placeholder" class="flag-placeholder" style="display:flex;">Team A flag</div>
+                </div>
+                <div class="flag-caption">Flag</div>
+              </div>
+              <h3 id="team-a-name">Team A</h3>
+              <div id="team-a-stats" class="stat-list"></div>
+            </div>
+            <div class="team-stat-card">
+              <div class="file-tab">Team B</div>
+              <div class="flag-polaroid">
+                <div class="polaroid-tape polaroid-tape-left"></div>
+                <div class="polaroid-tape polaroid-tape-right"></div>
+                <div class="flag-frame">
+                  <img id="team-b-flag" alt="Team B flag" style="display:none;">
+                  <div id="team-b-flag-placeholder" class="flag-placeholder" style="display:flex;">Team B flag</div>
+                </div>
+                <div class="flag-caption">Flag</div>
+              </div>
+              <h3 id="team-b-name">Team B</h3>
+              <div id="team-b-stats" class="stat-list"></div>
+            </div>
+          </div>
+          <div class="case-notes">
+            <h3>Notes</h3>
+            <ul id="case-notes-list"></ul>
+          </div>
+          <div id="source-note" class="source-note" style="display:none;">Source: ESPN Cricinfo Statsguru</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    /* ════════════════════════════════════
+       LIVE MATCHES (ts-cricket-score API)
+    ════════════════════════════════════ */
+    async function loadMatches() {
+      const loadingEl = document.getElementById('matches-loading');
+      const errorEl   = document.getElementById('matches-error');
+      const contentEl = document.getElementById('matches-content');
+      const updatedEl = document.getElementById('last-updated');
+
+      loadingEl.style.display = 'flex';
+      errorEl.style.display   = 'none';
+      contentEl.style.display = 'none';
+
+      try {
+        const res  = await fetch('/live-matches');
+        if (!res.ok) throw new Error('Server error');
+        const data = await res.json();
+
+        contentEl.innerHTML = '';
+
+        const all       = data.allMatches || [];
+        const liveNow   = all.filter(m => m.category === 'live');
+        const completed = all.filter(m => m.category === 'completed');
+        const upcoming  = all.filter(m => m.category === 'upcoming');
+
+        if (all.length === 0) {
+          contentEl.innerHTML = '<p style="font-family:Courier New,monospace;color:#6b5233;padding:16px 0;">No matches found right now. Check back later.</p>';
+        } else {
+          if (liveNow.length)   contentEl.appendChild(buildGroup('🔴 Live Now', liveNow,   'live-label',  true));
+          if (upcoming.length)  contentEl.appendChild(buildGroup('📋 Upcoming', upcoming,  '',            false));
+          if (completed.length) contentEl.appendChild(buildGroup('✅ Completed', completed, '',           false));
+        }
+
+        updatedEl.textContent = `Updated ${new Date().toLocaleTimeString()}`;
+        contentEl.style.display = 'block';
+      } catch (err) {
+        errorEl.textContent = 'Could not load match data. Check your connection and try refreshing.';
+        errorEl.style.display = 'block';
+      } finally {
+        loadingEl.style.display = 'none';
+      }
+    }
+
+    function buildGroup(label, matches, labelClass, autoFetchScores) {
+      const wrap = document.createElement('div');
+
+      const groupLabel = document.createElement('div');
+      groupLabel.className = 'match-group-label ' + labelClass;
+      groupLabel.textContent = label;
+      wrap.appendChild(groupLabel);
+
+      const grid = document.createElement('div');
+      grid.className = 'matches-grid';
+
+      matches.forEach(match => {
+        grid.appendChild(buildCard(match, autoFetchScores));
+      });
+
+      wrap.appendChild(grid);
+      return wrap;
+    }
+
+    function buildCard(match, autoFetch) {
+      const card = document.createElement('div');
+      const catClass = { live: 'live-card', completed: 'completed-card', upcoming: '' }[match.category] || '';
+      card.className = 'match-card ' + catClass;
+
+      const badgeClass = { live: 'badge-live', upcoming: 'badge-upcoming', completed: 'badge-completed' }[match.category] || 'badge-upcoming';
+      const badgeText  = { live: '● Live', upcoming: 'Upcoming', completed: 'Completed' }[match.category] || match.category;
+
+      const dotHtml = match.category === 'live' ? '<span class="live-dot" style="background:#fff;"></span>' : '';
+
+      card.innerHTML = `
+        <div class="match-card-badge ${badgeClass}">${dotHtml}${badgeText}</div>
+        <div class="match-card-title">${match.title}</div>
+        <div class="match-card-score-area"></div>
+      `;
+
+      const scoreArea = card.querySelector('.match-card-score-area');
+
+      if (match.category === 'completed') {
+        if (match.status) {
+          const resultEl = document.createElement('div');
+          resultEl.className = 'match-card-update-inline';
+          resultEl.style.marginTop = '6px';
+          resultEl.textContent = match.status;
+          scoreArea.appendChild(resultEl);
+        }
+      } else if (autoFetch && match.livescore) {
+        renderScore(scoreArea, match);
+      } else if (autoFetch) {
+        fetchAndRenderScore(scoreArea, match.id);
+      } else if (match.category === 'upcoming') {
+        if (match.startTime) {
+          const timeEl = document.createElement('div');
+          timeEl.className = 'match-card-start-time';
+          timeEl.innerHTML = `🕐 <strong>${match.startTime}</strong>`;
+          scoreArea.appendChild(timeEl);
+
+          const countdown = buildCountdown(match.startTime);
+          if (countdown) scoreArea.appendChild(countdown);
+        } else {
+          const btn = document.createElement('button');
+          btn.className = 'match-card-btn';
+          btn.textContent = 'Get Start Time';
+          btn.onclick = () => {
+            btn.textContent = 'Fetching…';
+            btn.disabled = true;
+            fetchAndRenderScore(scoreArea, match.id, btn);
+          };
+          scoreArea.appendChild(btn);
+        }
+      }
+
+      return card;
+    }
+
+    function buildCountdown(startTimeStr) {
+      if (!startTimeStr) return null;
+      try {
+        const lower = startTimeStr.toLowerCase();
+        const timeMatch = startTimeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+        if (!timeMatch) return null;
+
+        let hours = parseInt(timeMatch[1]);
+        const mins = parseInt(timeMatch[2]);
+        const ampm = timeMatch[3].toUpperCase();
+        if (ampm === 'PM' && hours !== 12) hours += 12;
+        if (ampm === 'AM' && hours === 12) hours = 0;
+
+        const now = new Date();
+        const target = new Date();
+        target.setHours(hours, mins, 0, 0);
+
+        if (lower.includes('tomorrow')) {
+          target.setDate(target.getDate() + 1);
+        } else if (!lower.includes('today') && !lower.includes('yesterday')) {
+          return null;
+        }
+
+        if (target <= now) return null;
+
+        const el = document.createElement('div');
+        el.className = 'match-countdown';
+
+        function update() {
+          const diff = target - new Date();
+          if (diff <= 0) {
+            el.textContent = 'Starting now!';
+            return;
+          }
+          const h = Math.floor(diff / 3600000);
+          const m = Math.floor((diff % 3600000) / 60000);
+          const s = Math.floor((diff % 60000) / 1000);
+          if (h > 0) {
+            el.textContent = `Starts in ${h}h ${m}m`;
+          } else if (m > 0) {
+            el.textContent = `Starts in ${m}m ${s}s`;
+          } else {
+            el.textContent = `Starts in ${s}s`;
+          }
+        }
+
+        update();
+        const timer = setInterval(update, 1000);
+        // Clean up when element is removed
+        new MutationObserver((_, obs) => {
+          if (!document.body.contains(el)) { clearInterval(timer); obs.disconnect(); }
+        }).observe(document.body, { childList: true, subtree: true });
+
+        return el;
+      } catch (_) {
+        return null;
+      }
+    }
+
+    async function fetchAndRenderScore(container, id, btn) {
+      const fetching = document.createElement('div');
+      fetching.className = 'match-card-fetching';
+      fetching.textContent = 'Fetching score…';
+      container.appendChild(fetching);
+
+      try {
+        const res  = await fetch(`/score?id=${encodeURIComponent(id)}`);
+        const data = await res.json();
+        fetching.remove();
+        if (btn) btn.remove();
+        renderScore(container, data);
+      } catch {
+        fetching.textContent = 'Score not available.';
+        if (btn) { btn.textContent = 'Retry'; btn.disabled = false; }
+      }
+    }
+
+    function renderScore(container, data) {
+      if (data.startTime) {
+        const timeEl = document.createElement('div');
+        timeEl.className = 'match-card-start-time';
+        timeEl.innerHTML = `🕐 <strong>${data.startTime}</strong>`;
+        container.appendChild(timeEl);
+        const countdown = buildCountdown(data.startTime);
+        if (countdown) container.appendChild(countdown);
+      }
+      if (data.livescore) {
+        const scoreEl = document.createElement('div');
+        scoreEl.className = 'match-card-score-inline';
+        scoreEl.textContent = data.livescore;
+        container.appendChild(scoreEl);
+      }
+      if (data.runrate) {
+        const rrEl = document.createElement('div');
+        rrEl.className = 'match-card-runrate';
+        rrEl.textContent = data.runrate;
+        container.appendChild(rrEl);
+      }
+      if (data.update) {
+        const upEl = document.createElement('div');
+        upEl.className = 'match-card-update-inline';
+        upEl.textContent = data.update;
+        container.appendChild(upEl);
+      }
+      if (data.tossInfo) {
+        const tEl = document.createElement('div');
+        tEl.className = 'match-card-runrate';
+        tEl.textContent = data.tossInfo;
+        container.appendChild(tEl);
+      }
+      if (!data.startTime && !data.livescore && !data.update && !data.tossInfo) {
+        const naEl = document.createElement('div');
+        naEl.className = 'match-card-fetching';
+        naEl.textContent = 'Match preview — score available once live.';
+        container.appendChild(naEl);
+      }
+    }
+
+    /* ════════════════════════════════════
+       HEAD-TO-HEAD COMPARISON
+    ════════════════════════════════════ */
+    const TEAM_FLAG_CODES = {
+      'Afghanistan':    'af',
+      'Australia':      'au',
+      'Bangladesh':     'bd',
+      'England':        'gb-eng',
+      'India':          'in',
+      'Ireland':        'ie',
+      'New Zealand':    'nz',
+      'Pakistan':       'pk',
+      'South Africa':   'za',
+      'Sri Lanka':      'lk',
+      'West Indies':    null,
+      'Zimbabwe':       'zw',
+      'Scotland':       'gb-sct',
+      'Netherlands':    'nl',
+      'Nepal':          'np',
+      'Oman':           'om',
+      'USA':            'us',
+      'Canada':         'ca',
+      'Kenya':          'ke',
+      'UAE':            'ae',
+      'Namibia':        'na',
+      'Papua New Guinea': 'pg'
+    };
+
+    function getTeamFlagUrl(teamName) {
+      const code = TEAM_FLAG_CODES[teamName];
+      if (!code) return '';
+      return `https://flagcdn.com/w160/${code}.png`;
+    }
+
+    const TEAM_GROUPS = [
+      {
+        label: "Men's Full Members",
+        teams: [
+          "Afghanistan", "Australia", "Bangladesh", "England", "India",
+          "Ireland", "New Zealand", "Pakistan", "South Africa", "Sri Lanka",
+          "West Indies", "Zimbabwe"
+        ]
+      },
+      {
+        label: "Men's Associate Nations",
+        teams: [
+          "Canada", "Kenya", "Namibia", "Nepal",
+          "Netherlands", "Oman", "Papua New Guinea", "Scotland",
+          "UAE", "USA"
+        ]
+      }
+    ];
+
+    const STAT_DEFINITIONS = [
+      { key: "matches",     label: "Matches Played" },
+      { key: "won",         label: "Wins" },
+      { key: "lost",        label: "Losses" },
+      { key: "winRate",     label: "Win Rate %" },
+      { key: "avgRunRate",  label: "Avg Run Rate" },
+      { key: "highScore",   label: "Highest Score" },
+      { key: "lowScore",    label: "Lowest Score",  lowerIsBetter: true }
+    ];
+
+    let selectedFormat = 'odi';
+
+    const PAGE_ELEMENTS = {
+      country1:              document.getElementById("country1"),
+      country2:              document.getElementById("country2"),
+      loading:               document.getElementById("loading"),
+      error:                 document.getElementById("error"),
+      comparisonTitle:       document.getElementById("comparison-title"),
+      comparisonUpdated:     document.getElementById("comparison-updated"),
+      comparisonSummary:     document.getElementById("comparison-summary"),
+      teamAName:             document.getElementById("team-a-name"),
+      teamAFlag:             document.getElementById("team-a-flag"),
+      teamAFlagPlaceholder:  document.getElementById("team-a-flag-placeholder"),
+      teamAStats:            document.getElementById("team-a-stats"),
+      teamBName:             document.getElementById("team-b-name"),
+      teamBFlag:             document.getElementById("team-b-flag"),
+      teamBFlagPlaceholder:  document.getElementById("team-b-flag-placeholder"),
+      teamBStats:            document.getElementById("team-b-stats"),
+      caseNotesList:         document.getElementById("case-notes-list"),
+      verdictBanner:         document.getElementById("verdict-banner"),
+      verdictTeam:           document.getElementById("verdict-team"),
+      verdictDetail:         document.getElementById("verdict-detail"),
+      sourceNote:            document.getElementById("source-note")
+    };
+
+    function createEmptyStats() {
+      return STAT_DEFINITIONS.reduce((s, { key }) => { s[key] = null; return s; }, {});
+    }
+
+    function getNumericStatValue(v) {
+      if (typeof v === "number") return v;
+      if (typeof v === "string") { const p = parseFloat(v); return isNaN(p) ? null : p; }
+      return null;
+    }
+
+    function getStatStatus(a, b, lowerIsBetter) {
+      if (a === null || b === null) return { className: "is-even", tag: "--" };
+      const aWins = lowerIsBetter ? a < b : a > b;
+      const bWins = lowerIsBetter ? b < a : b > a;
+      if (aWins) return { className: "is-leading",  tag: "Lead" };
+      if (bWins) return { className: "is-trailing", tag: "Trail" };
+      return { className: "is-even", tag: "Even" };
+    }
+
+    function formatStatValue(key, v) {
+      if (v === null || v === undefined) return "--";
+      if (key === "winRate")    return v + "%";
+      if (key === "avgRunRate") return typeof v === "number" ? v.toFixed(2) : v;
+      return v;
+    }
+
+    function renderStats(container, cur, opp) {
+      container.innerHTML = "";
+      STAT_DEFINITIONS.forEach(({ key, label, lowerIsBetter }) => {
+        const row  = document.createElement("div");
+        const lbl  = document.createElement("span");
+        const val  = document.createElement("span");
+        const tag  = document.createElement("span");
+        const cv   = getNumericStatValue(cur[key]);
+        const ov   = getNumericStatValue(opp[key]);
+        const st   = getStatStatus(cv, ov, lowerIsBetter);
+        row.className = `stat-row ${st.className}`;
+        lbl.className = "stat-label"; val.className = "stat-value"; tag.className = "stat-tag";
+        lbl.textContent = label;
+        val.textContent = formatStatValue(key, cur[key]);
+        tag.textContent = st.tag;
+        row.append(lbl, val, tag);
+        container.appendChild(row);
+      });
+    }
+
+    function renderFlag(img, placeholder, name, src) {
+      img.style.display = "none";
+      img.removeAttribute("src");
+      img.alt = `${name} flag`;
+      placeholder.textContent = `${name} flag`;
+      placeholder.style.display = "flex";
+      if (!src) return;
+      img.onload  = () => { img.style.display = "block"; placeholder.style.display = "none"; };
+      img.onerror = () => { img.style.display = "none";  placeholder.style.display = "flex"; };
+      img.src = src;
+    }
+
+    function renderNotes(notes) {
+      PAGE_ELEMENTS.caseNotesList.innerHTML = "";
+      (notes || []).forEach(n => {
+        const li = document.createElement("li");
+        li.textContent = n;
+        PAGE_ELEMENTS.caseNotesList.appendChild(li);
+      });
+    }
+
+    function renderVerdict(t1, t2) {
+      const banner = PAGE_ELEMENTS.verdictBanner;
+      const r1 = parseFloat(t1.winRate) || 0;
+      const r2 = parseFloat(t2.winRate) || 0;
+      banner.style.display = "block";
+      if (Math.abs(r1 - r2) < 2) {
+        PAGE_ELEMENTS.verdictTeam.className = "verdict-team verdict-even";
+        PAGE_ELEMENTS.verdictTeam.textContent = "Too close to call";
+        PAGE_ELEMENTS.verdictDetail.textContent = `${t1.name} ${r1}% vs ${t2.name} ${r2}% — evenly matched based on historical record.`;
+      } else {
+        const winner = r1 > r2 ? t1 : t2;
+        const loser  = r1 > r2 ? t2 : t1;
+        const winnerRate = r1 > r2 ? r1 : r2;
+        const loserRate  = r1 > r2 ? r2 : r1;
+        PAGE_ELEMENTS.verdictTeam.className = "verdict-team";
+        PAGE_ELEMENTS.verdictTeam.textContent = winner.name;
+        PAGE_ELEMENTS.verdictDetail.textContent =
+          `${winner.name} hold a ${winnerRate}% win rate vs ${loser.name}'s ${loserRate}% — historically the stronger side in this fixture.`;
+      }
+    }
+
+    function renderComparison(t1, t2, format, span) {
+      PAGE_ELEMENTS.comparisonTitle.textContent   = `${t1.name} vs ${t2.name}`;
+      PAGE_ELEMENTS.comparisonUpdated.textContent = `Updated: ${new Date().toLocaleTimeString()}`;
+      PAGE_ELEMENTS.comparisonSummary.textContent =
+        `Head-to-head ${format} record${span ? ' (' + span + ')' : ''}: ` +
+        `${t1.name} have won ${t1.won} of ${t1.matches} games` +
+        (t1.noResult > 0 ? ` (${t1.noResult} no result)` : '') + `.`;
+      PAGE_ELEMENTS.teamAName.textContent = t1.name;
+      PAGE_ELEMENTS.teamBName.textContent = t2.name;
+      renderFlag(PAGE_ELEMENTS.teamAFlag, PAGE_ELEMENTS.teamAFlagPlaceholder, t1.name, getTeamFlagUrl(t1.name));
+      renderFlag(PAGE_ELEMENTS.teamBFlag, PAGE_ELEMENTS.teamBFlagPlaceholder, t2.name, getTeamFlagUrl(t2.name));
+      renderStats(PAGE_ELEMENTS.teamAStats, t1, t2);
+      renderStats(PAGE_ELEMENTS.teamBStats, t2, t1);
+      renderVerdict(t1, t2);
+      renderNotes([
+        `Data covers the full recorded head-to-head history (${span || 'all time'}) from ESPN Cricinfo Statsguru.`,
+        `Win Rate is calculated excluding no-result matches.`,
+        `Avg Run Rate = runs per over scored. Highest/Lowest score are team totals in this fixture.`,
+        `Prediction is based on historical win rate only — current form, venue, and conditions are not factored in.`
+      ]);
+      PAGE_ELEMENTS.sourceNote.style.display = "block";
+    }
+
+    function renderDefault() {
+      PAGE_ELEMENTS.comparisonTitle.textContent   = "Team A vs Team B";
+      PAGE_ELEMENTS.comparisonUpdated.textContent = "Updated: --";
+      PAGE_ELEMENTS.comparisonSummary.textContent = "Select two teams to view the comparison.";
+      PAGE_ELEMENTS.teamAName.textContent = "Team A";
+      PAGE_ELEMENTS.teamBName.textContent = "Team B";
+      renderFlag(PAGE_ELEMENTS.teamAFlag, PAGE_ELEMENTS.teamAFlagPlaceholder, "Team A", "");
+      renderFlag(PAGE_ELEMENTS.teamBFlag, PAGE_ELEMENTS.teamBFlagPlaceholder, "Team B", "");
+      renderStats(PAGE_ELEMENTS.teamAStats, createEmptyStats(), createEmptyStats());
+      renderStats(PAGE_ELEMENTS.teamBStats, createEmptyStats(), createEmptyStats());
+      PAGE_ELEMENTS.verdictBanner.style.display = "none";
+      PAGE_ELEMENTS.sourceNote.style.display = "none";
+      renderNotes(["Select two teams and click Compare to see their head-to-head stats."]);
+    }
+
+    function populateTeamDropdowns() {
+      [PAGE_ELEMENTS.country1, PAGE_ELEMENTS.country2].forEach((sel, idx) => {
+        sel.innerHTML = `<option value="">Select Team ${idx === 0 ? 'A' : 'B'}</option>`;
+        TEAM_GROUPS.forEach(group => {
+          const og = document.createElement("optgroup");
+          og.label = group.label;
+          group.teams.forEach(name => {
+            const opt = document.createElement("option");
+            opt.value = name;
+            opt.textContent = name;
+            og.appendChild(opt);
+          });
+          sel.appendChild(og);
+        });
+      });
+      PAGE_ELEMENTS.country1.value = "India";
+      PAGE_ELEMENTS.country2.value = "Australia";
+    }
+
+    function initFormatToggle() {
+      document.querySelectorAll('.fmt-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.fmt-btn').forEach(b => b.classList.remove('fmt-active'));
+          btn.classList.add('fmt-active');
+          selectedFormat = btn.dataset.fmt;
+        });
+      });
+    }
+
+    async function fetchH2H() {
+      const teamA = PAGE_ELEMENTS.country1.value;
+      const teamB = PAGE_ELEMENTS.country2.value;
+      PAGE_ELEMENTS.error.style.display = "none";
+
+      if (!teamA || !teamB) {
+        PAGE_ELEMENTS.error.textContent = "Please select both teams.";
+        PAGE_ELEMENTS.error.style.display = "block";
+        return;
+      }
+      if (teamA === teamB) {
+        PAGE_ELEMENTS.error.textContent = "Please select two different teams.";
+        PAGE_ELEMENTS.error.style.display = "block";
+        return;
+      }
+
+      PAGE_ELEMENTS.loading.style.display = "block";
+      PAGE_ELEMENTS.verdictBanner.style.display = "none";
+
+      try {
+        const res = await fetch(`/h2h?team1=${encodeURIComponent(teamA)}&team2=${encodeURIComponent(teamB)}&format=${selectedFormat}`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || "Failed to load stats.");
+        }
+
+        renderComparison(data.team1, data.team2, data.format, data.team1.span);
+      } catch (e) {
+        PAGE_ELEMENTS.error.textContent = e.message || "Unable to load comparison data. Please try again.";
+        PAGE_ELEMENTS.error.style.display = "block";
+      } finally {
+        PAGE_ELEMENTS.loading.style.display = "none";
+      }
+    }
+
+    /* ── INIT ── */
+    populateTeamDropdowns();
+    initFormatToggle();
+    renderDefault();
+    loadMatches();
+    setInterval(loadMatches, 90000);
+  </script>
+</body>
+</html>
