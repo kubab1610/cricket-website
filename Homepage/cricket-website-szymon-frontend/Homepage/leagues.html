@@ -3,8 +3,317 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>StatBat - Leagues</title>
+  <title>StatBat - League Investigation</title>
   <link rel="stylesheet" href="style.css">
+  <style>
+
+    .leagues-wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 20px 16px 60px;
+    }
+
+
+    .league-selector-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 28px;
+    }
+    .league-selector-row label {
+      font-family: 'Courier New', monospace;
+      font-weight: 700;
+      color: #c9a227;
+      font-size: 0.95rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .league-select {
+      background: #1a1a1a;
+      color: #f5f0e8;
+      border: 2px solid #c9a227;
+      border-radius: 4px;
+      padding: 8px 14px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.95rem;
+      cursor: pointer;
+      outline: none;
+      min-width: 220px;
+    }
+    .league-select:focus { border-color: #e8c547; }
+    .refresh-btn {
+      background: none;
+      border: 2px solid #888;
+      color: #aaa;
+      border-radius: 4px;
+      padding: 7px 14px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .refresh-btn:hover { border-color: #c9a227; color: #c9a227; }
+    .league-badge {
+      margin-left: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 0.8rem;
+      color: #777;
+      letter-spacing: 0.5px;
+    }
+    .live-dot { color: #e84848; animation: blink 1.2s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+  
+    .league-loading {
+      text-align: center;
+      padding: 60px 20px;
+      font-family: 'Courier New', monospace;
+      color: #888;
+      font-size: 1rem;
+    }
+    .spinner {
+      display: inline-block;
+      width: 28px; height: 28px;
+      border: 3px solid #333;
+      border-top-color: #c9a227;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .league-error {
+      background: rgba(232,72,72,0.1);
+      border: 1px solid rgba(232,72,72,0.4);
+      color: #e84848;
+      border-radius: 6px;
+      padding: 16px 20px;
+      font-family: 'Courier New', monospace;
+      text-align: center;
+    }
+
+
+    .panel-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(201,162,39,0.25);
+      border-radius: 8px;
+      margin-bottom: 28px;
+      overflow: hidden;
+    }
+    .panel-header {
+      background: rgba(201,162,39,0.12);
+      border-bottom: 1px solid rgba(201,162,39,0.25);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .panel-header-icon { font-size: 1.1rem; }
+    .panel-header-title {
+      font-family: 'Courier New', monospace;
+      font-weight: 700;
+      color: #c9a227;
+      font-size: 0.95rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .panel-header-sub {
+      margin-left: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 0.75rem;
+      color: #666;
+    }
+
+    /* Standings table */
+    .standings-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: 'Courier New', monospace;
+      font-size: 0.88rem;
+    }
+    .standings-table thead tr {
+      background: rgba(255,255,255,0.04);
+    }
+    .standings-table th {
+      padding: 10px 12px;
+      text-align: center;
+      color: #888;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      font-weight: 600;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .standings-table th:nth-child(2) { text-align: left; }
+    .standings-table td {
+      padding: 11px 12px;
+      text-align: center;
+      color: #ccc;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .standings-table td:nth-child(2) { text-align: left; }
+    .standings-table tbody tr:last-child td { border-bottom: none; }
+    .standings-table tbody tr:hover { background: rgba(255,255,255,0.03); }
+
+
+    .standings-table tbody tr.qualifier-row td:first-child {
+      border-left: 3px solid #c9a227;
+    }
+    .standings-table tbody tr.qualifier-row { background: rgba(201,162,39,0.04); }
+    .standings-table tbody tr.playoff-row td:first-child {
+      border-left: 3px solid #4a9e4a;
+    }
+
+    .pos-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px; height: 24px;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: 0.82rem;
+    }
+    .pos-1 { background: rgba(201,162,39,0.2); color: #c9a227; }
+    .pos-2 { background: rgba(192,192,192,0.15); color: #ccc; }
+    .pos-3 { background: rgba(140,100,60,0.2); color: #c4884a; }
+    .pos-4 { background: rgba(74,158,74,0.12); color: #6dbe6d; }
+
+    .team-cell { display: flex; align-items: center; gap: 10px; }
+    .team-abbr {
+      font-weight: 700;
+      color: #f0e8d0;
+      font-size: 0.92rem;
+    }
+    .team-full-name {
+      color: #888;
+      font-size: 0.8rem;
+    }
+
+    .nrr-positive { color: #6dbe6d; }
+    .nrr-negative { color: #e84848; }
+
+   
+    .form-guide { display: flex; gap: 4px; justify-content: center; }
+    .form-bubble {
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.65rem;
+      font-weight: 700;
+    }
+    .form-W  { background: rgba(109,190,109,0.25); color: #6dbe6d; border: 1px solid rgba(109,190,109,0.4); }
+    .form-L  { background: rgba(232,72,72,0.2);  color: #e84848; border: 1px solid rgba(232,72,72,0.35); }
+    .form-T  { background: rgba(255,180,0,0.15); color: #f5a623; border: 1px solid rgba(255,180,0,0.35); }
+    .form-D  { background: rgba(80,160,230,0.15);color: #60a8e0; border: 1px solid rgba(80,160,230,0.3); }
+    .form-NR { background: rgba(200,200,200,0.1);color: #888;    border: 1px solid rgba(200,200,200,0.2); }
+
+   
+    .refresh-countdown {
+      font-family: 'Courier New', monospace;
+      font-size: 0.75rem;
+      color: #555;
+      letter-spacing: 0.5px;
+    }
+    .refresh-countdown.imminent { color: #c9a227; }
+
+    /* Qualifier legend */
+    .qualifier-legend {
+      padding: 12px 20px;
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.75rem;
+      color: #777;
+    }
+    .legend-line {
+      width: 18px; height: 3px;
+      border-radius: 2px;
+    }
+    .legend-gold { background: #c9a227; }
+    .legend-green { background: #4a9e4a; }
+
+    /* Fixtures */
+    .fixtures-list { padding: 4px 0; }
+    .fixture-group-header {
+      padding: 8px 20px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #666;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .fixture-item {
+      display: flex;
+      align-items: center;
+      padding: 12px 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      gap: 14px;
+      font-family: 'Courier New', monospace;
+      transition: background 0.15s;
+    }
+    .fixture-item:last-child { border-bottom: none; }
+    .fixture-item:hover { background: rgba(255,255,255,0.02); }
+
+    .fixture-num {
+      font-size: 0.72rem;
+      color: #555;
+      min-width: 30px;
+    }
+    .fixture-teams {
+      flex: 1;
+      color: #d8d0be;
+      font-size: 0.88rem;
+    }
+    .fixture-teams strong { color: #f0e8d0; }
+    .fixture-status {
+      font-size: 0.8rem;
+      padding: 4px 10px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+    .status-live {
+      background: rgba(232,72,72,0.15);
+      color: #e84848;
+      border: 1px solid rgba(232,72,72,0.3);
+    }
+    .status-upcoming {
+      background: rgba(201,162,39,0.1);
+      color: #c9a227;
+      border: 1px solid rgba(201,162,39,0.25);
+    }
+    .status-completed {
+      background: rgba(255,255,255,0.05);
+      color: #777;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .fixture-link {
+      color: #c9a227;
+      text-decoration: none;
+      font-size: 0.75rem;
+      opacity: 0.7;
+      white-space: nowrap;
+    }
+    .fixture-link:hover { opacity: 1; }
+
+    @media (max-width: 650px) {
+      .standings-table th:nth-child(7),
+      .standings-table td:nth-child(7) { display: none; }
+      .team-full-name { display: none; }
+      .fixture-item { padding: 10px 14px; gap: 8px; }
+    }
+    @media (max-width: 480px) {
+      .standings-table th:nth-child(6),
+      .standings-table td:nth-child(6) { display: none; }
+    }
+  </style>
 </head>
 <body class="teams-page">
   <header class="top-bar">
@@ -15,14 +324,301 @@
     <a href="index.html">Home</a>
     <a href="teams.html">Teams</a>
     <a href="players.html">Players</a>
-    <a href="leagues.html">Leagues</a>
+    <a href="leagues.html" class="active">Leagues</a>
   </nav>
-  <div class="page">
-    <div class="container h2h-container">
-    <h1 class="h2h-title">Leagues</h1>
-    <p style="text-align:center;">Coming soon — league schedules and standings will be added here.</p>
-    <p style="text-align:center;"><a href="index.html">Back to home</a></p>
+
+  <div class="live-ticker" id="liveTicker" style="display:none">
+    <span class="ticker-label"><span class="ticker-dot">●</span>&nbsp;LIVE</span>
+    <div class="ticker-scroll-wrap">
+      <div class="ticker-scroll" id="tickerScroll"></div>
     </div>
   </div>
+
+  <div class="page">
+    <div class="leagues-wrap">
+      <h1 class="h2h-title" style="margin-bottom:8px;">League Investigation</h1>
+      <p style="text-align:center; color:#888; font-family:'Courier New',monospace; font-size:0.88rem; margin-bottom:28px;">
+        Live points tables &amp; match schedules. Data refreshed from Cricbuzz.
+      </p>
+
+    
+      <div class="league-selector-row">
+        <label>Select League:</label>
+        <select class="league-select" id="leagueSelect">
+          <optgroup label="South Asia">
+            <option value="ipl">IPL 2026 — Indian Premier League</option>
+            <option value="psl">PSL 2026 — Pakistan Super League</option>
+            <option value="bpl">BPL 2025-26 — Bangladesh Premier League</option>
+            <option value="npl">NPL 2025 — Nepal Premier League</option>
+          </optgroup>
+          <optgroup label="England">
+            <option value="county1">County Championship — Division One 2026</option>
+            <option value="county2">County Championship — Division Two 2026</option>
+            <option value="hundredw">The Hundred Women's Competition 2026</option>
+          </optgroup>
+          <optgroup label="Women's Cricket">
+            <option value="iccwt20q">ICC Women's T20 WC Global Qualifier 2026</option>
+            <option value="accwomen">ACC Women's Asia Cup Rising Stars 2026</option>
+            <option value="iccwt20c">ICC Women's T20I Challenge Trophy 2026</option>
+          </optgroup>
+        </select>
+        <button class="refresh-btn" id="refreshBtn">Refresh</button>
+        <span class="league-badge" id="lastUpdated"></span>
+        <span class="refresh-countdown" id="refreshCountdown"></span>
+      </div>
+
+  
+      <div id="leagueContent">
+        <div class="league-loading">
+          <div class="spinner"></div>
+          <div>Loading league data…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const leagueSelect     = document.getElementById('leagueSelect');
+    const contentEl        = document.getElementById('leagueContent');
+    const lastUpdated      = document.getElementById('lastUpdated');
+    const refreshBtn       = document.getElementById('refreshBtn');
+    const refreshCountdown = document.getElementById('refreshCountdown');
+
+    let autoRefreshTimer   = null;
+    let countdownInterval  = null;
+    let hasLiveMatches     = false;
+
+    leagueSelect.addEventListener('change', () => { resetAutoRefresh(); loadLeague(); });
+    refreshBtn.addEventListener('click', () => { resetAutoRefresh(); loadLeague(); });
+
+    function resetAutoRefresh() {
+      clearTimeout(autoRefreshTimer);
+      clearInterval(countdownInterval);
+      refreshCountdown.textContent = '';
+    }
+
+    function startAutoRefresh() {
+      const INTERVAL = hasLiveMatches ? 30 : 60;
+      let remaining = INTERVAL;
+
+      refreshCountdown.classList.toggle('imminent', false);
+      refreshCountdown.textContent = `Auto-refresh in ${remaining}s`;
+
+      countdownInterval = setInterval(() => {
+        remaining--;
+        refreshCountdown.classList.toggle('imminent', remaining <= 10);
+        refreshCountdown.textContent = remaining > 0 ? `Auto-refresh in ${remaining}s` : 'Refreshing…';
+      }, 1000);
+
+      autoRefreshTimer = setTimeout(() => {
+        clearInterval(countdownInterval);
+        loadLeague();
+      }, INTERVAL * 1000);
+    }
+
+    async function loadLeague() {
+      const league = leagueSelect.value;
+      refreshBtn.textContent = 'Loading…';
+      refreshBtn.disabled = true;
+      refreshCountdown.textContent = '';
+
+      contentEl.innerHTML = `
+        <div class="league-loading">
+          <div class="spinner"></div>
+          <div>Investigating ${league.toUpperCase()} data…</div>
+        </div>`;
+
+      try {
+        const res  = await fetch(`/leagues?league=${league}`);
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        hasLiveMatches = (data.fixtures || []).some(f => f.category === 'live');
+        renderLeague(data);
+        const now = new Date();
+        lastUpdated.innerHTML = hasLiveMatches
+          ? `<span class="live-dot">●</span> Updated ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`
+          : `Updated ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+        startAutoRefresh();
+      } catch (err) {
+        contentEl.innerHTML = `<div class="league-error">Investigation failed: ${err.message}</div>`;
+      } finally {
+        refreshBtn.textContent = 'Refresh';
+        refreshBtn.disabled = false;
+      }
+    }
+
+    function renderLeague(data) {
+      const { standings = [], fixtures = [] } = data;
+
+  
+      const live      = fixtures.filter(f => f.category === 'live');
+      const upcoming  = fixtures.filter(f => f.category === 'upcoming');
+      const completed = fixtures.filter(f => f.category === 'completed');
+
+      let html = '';
+
+     
+      html += `
+        <div class="panel-card">
+          <div class="panel-header">
+            <span class="panel-header-icon">📋</span>
+            <span class="panel-header-title">Points Table</span>
+            <span class="panel-header-sub">${data.league}</span>
+          </div>
+          <table class="standings-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Team</th>
+                <th>P</th>
+                <th>W</th>
+                <th>L</th>
+                <th>Pts</th>
+                <th>NRR</th>
+                <th>Form</th>
+              </tr>
+            </thead>
+            <tbody>`;
+
+      standings.forEach((t, i) => {
+        const rowClass = i < 2 ? 'qualifier-row' : (i < 4 ? 'playoff-row' : '');
+        const posClass = i < 4 ? `pos-${i+1}` : '';
+        const rawNrr = t.nrr.replace(/^\+/, '');
+        const nrrClass = parseFloat(rawNrr) >= 0 ? 'nrr-positive' : 'nrr-negative';
+        const nrr = parseFloat(rawNrr) >= 0 ? `+${rawNrr}` : rawNrr;
+
+        const formLabels = { W: 'Win', L: 'Loss', T: 'Tied', D: 'Draw', NR: 'No Result' };
+        const formBubbles = (t.form || []).map(r =>
+          `<div class="form-bubble form-${r}" title="${formLabels[r] || r}">${r}</div>`
+        ).join('');
+
+        html += `
+              <tr class="${rowClass}">
+                <td><span class="pos-num ${posClass}">${t.pos}</span></td>
+                <td>
+                  <div class="team-cell">
+                    <div>
+                      <div class="team-abbr">${escHtml(t.abbr)}</div>
+                      <div class="team-full-name">${escHtml(t.name)}</div>
+                    </div>
+                  </div>
+                </td>
+                <td>${t.played}</td>
+                <td style="color:#6dbe6d">${t.won}</td>
+                <td style="color:#e84848">${t.lost}</td>
+                <td style="color:#c9a227;font-weight:700">${t.pts}</td>
+                <td class="${nrrClass}">${nrr}</td>
+                <td><div class="form-guide">${formBubbles || '<span style="color:#444;font-size:0.75rem">—</span>'}</div></td>
+              </tr>`;
+      });
+
+      if (!standings.length) {
+        html += `<tr><td colspan="8" style="text-align:center;color:#666;padding:30px;font-family:'Courier New',monospace;">No standings data available.</td></tr>`;
+      }
+
+      html += `
+            </tbody>
+          </table>
+          <div class="qualifier-legend">
+            <div class="legend-item"><div class="legend-line legend-gold"></div> Playoffs / Top 2</div>
+            <div class="legend-item"><div class="legend-line legend-green"></div> Elimination Playoff (3rd–4th)</div>
+          </div>
+        </div>`;
+
+    
+      const hasFixtures = live.length || upcoming.length || completed.length;
+      html += `
+        <div class="panel-card">
+          <div class="panel-header">
+            <span class="panel-header-icon">📅</span>
+            <span class="panel-header-title">Matches</span>
+            <span class="panel-header-sub">${fixtures.length} fixtures</span>
+          </div>
+          <div class="fixtures-list">`;
+
+      if (!hasFixtures) {
+        html += `<div style="padding:30px;text-align:center;color:#666;font-family:'Courier New',monospace;">No fixture data available.</div>`;
+      }
+
+      if (live.length) {
+        html += `<div class="fixture-group-header"><span class="live-dot">●</span> Live Now</div>`;
+        live.forEach((f, i) => html += renderFixture(f, i + 1, 'live'));
+      }
+      if (upcoming.length) {
+        html += `<div class="fixture-group-header">Upcoming</div>`;
+        upcoming.forEach((f, i) => html += renderFixture(f, i + 1, 'upcoming'));
+      }
+      if (completed.length) {
+        const recent = completed.slice(0, 12);
+        html += `<div class="fixture-group-header">Recent Results</div>`;
+        recent.forEach((f, i) => html += renderFixture(f, completed.length - i, 'completed'));
+      }
+
+      html += `</div></div>`;
+      contentEl.innerHTML = html;
+    }
+
+    function renderFixture(f, num, category) {
+      const statusClass = category === 'live' ? 'status-live'
+                        : category === 'upcoming' ? 'status-upcoming'
+                        : 'status-completed';
+      const statusLabel = category === 'live'
+        ? '<span class="live-dot">●</span> LIVE'
+        : category === 'upcoming'
+        ? 'Preview'
+        : f.status || 'Complete';
+
+      
+      const titleParts = f.title.split(',');
+      const matchup = titleParts[0] || f.title;
+      const matchNum = titleParts.slice(1).join(',').trim();
+      const titleHtml = matchNum
+        ? `<strong>${escHtml(matchup)}</strong>, <span style="color:#666">${escHtml(matchNum)}</span>`
+        : `<strong>${escHtml(matchup)}</strong>`;
+
+      return `
+        <div class="fixture-item">
+          <span class="fixture-num">#${num}</span>
+          <span class="fixture-teams">${titleHtml}</span>
+          <span class="fixture-status ${statusClass}">${statusLabel}</span>
+          <a href="https://www.cricbuzz.com/live-cricket-scores/${f.id}/" target="_blank" rel="noopener" class="fixture-link">Cricbuzz ↗</a>
+        </div>`;
+    }
+
+    function escHtml(str) {
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    
+    loadLeague();
+  </script>
+  <script>
+  (function() {
+    const tickerEl = document.getElementById('liveTicker');
+    const scrollEl = document.getElementById('tickerScroll');
+    if (!tickerEl || !scrollEl) return;
+    function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    async function refresh() {
+      try {
+        const d = await fetch('/live-matches').then(r => r.json());
+        const lives = d.liveNow || [];
+        if (!lives.length) { tickerEl.style.display = 'none'; return; }
+        tickerEl.style.display = 'flex';
+        const items = lives.map(m => {
+          const score = m.metaScore ? m.metaScore.split('|')[0].trim() : m.title;
+          const sl = (m.status || '').toLowerCase();
+          const badge = sl.includes('stumps') ? '<span class="ticker-status-stumps">[STUMPS]</span>' : '<span class="ticker-status-live">[LIVE]</span>';
+          const short = score.length > 90 ? score.slice(0, 90) + '…' : score;
+          const safeTitle = (m.title || '').replace(/'/g, "\\'");
+          return `<span class="ticker-item" onclick="if(typeof openMatchPanel==='function')openMatchPanel('${m.id}','${safeTitle}');">${badge}${esc(short)}</span><span class="ticker-sep">◆</span>`;
+        }).join('');
+        scrollEl.innerHTML = items + items;
+      } catch(e) { tickerEl.style.display = 'none'; }
+    }
+    refresh();
+    setInterval(refresh, 30000);
+  })();
+  </script>
 </body>
 </html>
