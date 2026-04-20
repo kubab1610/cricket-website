@@ -94,12 +94,14 @@ const parseCricketScore = ($) => {
 
   const tossInfo = getText('.cb-toss-sts');
 
+  // Extract start time from the raw HTML
   let startTime = '';
   try {
     const rawHtml = $.html();
     const dtIdx = rawHtml.indexOf('Date &amp; Time:');
     if (dtIdx > -1) {
       const section = rawHtml.slice(dtIdx, dtIdx + 300);
+      // Strip comments and tags to get plain text
       const plain = section
         .replace(/<!--.*?-->/gs, '')
         .replace(/<[^>]+>/g, '')
@@ -107,6 +109,7 @@ const parseCricketScore = ($) => {
         .replace(/&nbsp;/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
+      // plain is now like: "Date & Time: Today, 7:30 PM LOCAL"
       const m = plain.match(/(Today|Tomorrow|[A-Z][a-z]+\s+\d{1,2})[\s,]*(\d{1,2}:\d{2}\s*[AP]M)/i);
       if (m) {
         startTime = `${m[1]}, ${m[2]}`;
@@ -145,6 +148,7 @@ app.get('/score', async (req, res) => {
   }
 });
 
+/* ── Full match detail (scorecard + live data) ── */
 app.get('/match-detail', async (req, res) => {
   const { id } = req.query;
   if (!id) return res.status(400).json({ error: 'Match ID required' });
@@ -153,14 +157,17 @@ app.get('/match-detail', async (req, res) => {
     const html = await fetchHTML(`https://www.cricbuzz.com/live-cricket-scores/${id}/`);
     const $ = cheerio.load(html);
 
+    // Title: use plain h1 (works for all match types)
     const rawH1 = $('h1').first().text().replace(/\s+/g, ' ').trim();
     const title = rawH1
       .replace(/\s*-\s*(Live Cricket Score|Commentary).*$/i, '')
       .replace(/\s{2,}/g, ' ')
       .trim();
 
+    // Meta title has the abbreviated live scores (e.g. "IPL | LSG 200/5 (20) vs PBKS 254/7 ...")
     const metaTitle = $('title').text().replace(/\s+/g, ' ').trim();
 
+    // Match status
     const statusSelectors = [
       '.cb-text-complete', '.cb-text-inprogress', '.cb-text-stumps',
       '.cb-text-lunch', '.cb-text-inningsbreak', '.cb-text-tea',
@@ -180,6 +187,7 @@ app.get('/match-detail', async (req, res) => {
       '.cb-text-tea', '.cb-text-inningsbreak'
     ].some(s => $(s).first().text().trim() !== '');
 
+    // Start time
     let startTime = '';
     try {
       const dtIdx = html.indexOf('Date &amp; Time:');
@@ -192,15 +200,18 @@ app.get('/match-detail', async (req, res) => {
       }
     } catch (_) {}
 
+    // Scorecard rows — available on live match pages
     const batters = [];
     const bowlers = [];
     let parsingBowlers = false;
 
     $('[class*="scorecard-bat-grid"]').each((_, el) => {
+      // Each direct child is a table cell
       const cells = $(el).children().map((_, c) => $(c).text().replace(/\s+/g, ' ').trim()).get();
       if (!cells.length) return;
 
       const first = cells[0] || '';
+      // Header rows: "Batter R B 4s 6s SR" or "Bowler O M R W ECO"
       if (/^Batter/i.test(first) || first === 'R') { parsingBowlers = false; return; }
       if (/^Bowler/i.test(first) || first === 'O') { parsingBowlers = true; return; }
       if (/^Key Stats/i.test(first)) return;
@@ -221,12 +232,15 @@ app.get('/match-detail', async (req, res) => {
       }
     });
 
+    // Innings scores: parse from metaTitle e.g. "IPL | LSG 200/5 (20) vs PBKS 254/7"
+    // or from page-level score blocks (.cb-ovr-flo, .cb-font-20)
     const inningsScores = [];
     $('[class*="cb-font-20"]').each((_, el) => {
       const t = $(el).text().trim();
       if (t && /\d/.test(t)) inningsScores.push(t);
     });
 
+    // Also treat as live if we found active batters/bowlers on the page
     const effectivelyLive = isLive || batters.length > 0 || bowlers.length > 0;
 
     res.json({
@@ -296,6 +310,7 @@ app.get('/live-matches', async (req, res) => {
     });
 
     const liveMatches = matches.filter(m => m.category === 'live');
+
     const upcomingMatches = matches.filter(m => m.category === 'upcoming');
 
     const [scoredLive, timedUpcoming] = await Promise.all([
@@ -306,11 +321,13 @@ app.get('/live-matches', async (req, res) => {
             const matchHtml = await fetchHTML(url);
             const $m = cheerio.load(matchHtml);
             const scoreData = parseCricketScore($m);
+            // Fix title: use h1 if parseCricketScore returned empty
             if (!scoreData.title) {
               const h1 = $m('h1').first().text().replace(/\s+/g, ' ')
                 .replace(/\s*-\s*(Live Cricket Score|Commentary).*$/i, '').trim();
               scoreData.title = h1 || match.title;
             }
+            // Extract brief score from <title> tag
             const metaScore = $m('title').text().replace(/\s+/g, ' ').trim();
             return { ...match, ...scoreData, metaScore };
           } catch {
@@ -351,6 +368,9 @@ app.get('/live-matches', async (req, res) => {
   }
 });
 
+/* ══════════════════════════════════════
+   LEAGUE STANDINGS & FIXTURES
+══════════════════════════════════════ */
 const LEAGUE_CONFIG = {
   ipl: {
     seriesId: 9241,
@@ -433,6 +453,7 @@ const fetchLeagueStandings = async (seriesId, slug) => {
   const html = await fetchHTML(url);
   const $ = cheerio.load(html);
 
+  // Extract team names in order from their link slugs
   const teamNames = [];
   $('a[href*="/cricket-team/"]').each((_, el) => {
     const href = $(el).attr('href') || '';
@@ -517,12 +538,14 @@ app.get('/leagues', async (req, res) => {
       fetchLeagueFixtures(config.seriesId, config.slug)
     ]);
 
+    // Build form guide: last 6 results per team — W, L, T, D, NR
     const formMap = {};
     [...fixtures].reverse().forEach(f => {
       if (f.category !== 'completed' || !f.status) return;
       const result = f.status;
       const sl = result.toLowerCase();
 
+      // Determine result type
       let resultType = null;
       let winner = null;
       if (/\btied\b/.test(sl)) {
@@ -541,6 +564,7 @@ app.get('/leagues', async (req, res) => {
         const abbr = team.abbr.toLowerCase().replace(/\s+/g, '');
         const fullWords = team.name.toLowerCase().split(/\s+/);
         const titleL = f.title.toLowerCase();
+        // Match if team name or abbreviation appears in the fixture title
         const isInvolved = titleL.includes(abbr) || fullWords.some(w => w.length >= 4 && titleL.includes(w));
         if (!isInvolved) return;
         if (!formMap[team.abbr]) formMap[team.abbr] = [];
@@ -569,15 +593,43 @@ app.get('/leagues', async (req, res) => {
 });
 
 const ESPN_TEAM_IDS = {
-  'Afghanistan': 40, 'Australia': 2, 'Bangladesh': 25, 'England': 1,
-  'India': 6, 'Ireland': 29, 'New Zealand': 5, 'Pakistan': 7,
-  'South Africa': 3, 'Sri Lanka': 8, 'West Indies': 4, 'Zimbabwe': 9,
-  'Scotland': 30, 'Netherlands': 15, 'Nepal': 32, 'Oman': 28,
-  'USA': 11, 'Canada': 17, 'Kenya': 26, 'UAE': 8, 'Namibia': 37, 'Papua New Guinea': 27
+  'Afghanistan': 40,
+  'Australia': 2,
+  'Bangladesh': 25,
+  'England': 1,
+  'India': 6,
+  'Ireland': 29,
+  'New Zealand': 5,
+  'Pakistan': 7,
+  'South Africa': 3,
+  'Sri Lanka': 8,
+  'West Indies': 4,
+  'Zimbabwe': 9,
+  'Scotland': 30,
+  'Netherlands': 15,
+  'Nepal': 32,
+  'Oman': 28,
+  'USA': 11,
+  'Canada': 17,
+  'Kenya': 26,
+  'UAE': 8,
+  'Namibia': 37,
+  'Papua New Guinea': 27
 };
 
-const ESPN_FORMAT_CLASS = { 'test': 1, 'odi': 2, 't20': 3, 't20i': 3 };
-const FORMAT_LABEL = { 'test': 'Test', 'odi': 'ODI', 't20': 'T20I', 't20i': 'T20I' };
+const ESPN_FORMAT_CLASS = {
+  'test': 1,
+  'odi': 2,
+  't20': 3,
+  't20i': 3
+};
+
+const FORMAT_LABEL = {
+  'test': 'Test',
+  'odi': 'ODI',
+  't20': 'T20I',
+  't20i': 'T20I'
+};
 
 const fetchH2HStats = async (teamId, oppId, formatClass) => {
   const url = `https://stats.espncricinfo.com/ci/engine/stats/index.html?class=${formatClass};filter=advanced;opposition=${oppId};team=${teamId};template=results;type=team`;
@@ -682,23 +734,6 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Resource not found' });
 });
 
-process.on('uncaughtException', (err) => {
-  console.error('There was an uncaught error:', err);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-});
-
-const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`StatBat server running on http://localhost:${PORT}`);
-  console.log(`Also accessible on your network at http://127.0.0.1:${PORT}`);
-});
-
-server.on('error', (e) => {
-  if (e.code === 'EADDRINUSE') {
-    console.error(`Port ${PORT} is already in use. Please kill the other process or change the PORT.`);
-  } else {
-    console.error(`Server error: ${e.message}`);
-  }
+app.listen(PORT, () => {
+  console.log(`StatBat server running on port ${PORT}`);
 });
