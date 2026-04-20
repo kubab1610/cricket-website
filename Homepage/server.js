@@ -4,7 +4,7 @@ const cheerio = require('cheerio');
 const path = require('path');
 
 const app = express();
-const PORT = 5000;
+const PORT = 8000;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -94,14 +94,12 @@ const parseCricketScore = ($) => {
 
   const tossInfo = getText('.cb-toss-sts');
 
-  // Extract start time from the raw HTML
   let startTime = '';
   try {
     const rawHtml = $.html();
     const dtIdx = rawHtml.indexOf('Date &amp; Time:');
     if (dtIdx > -1) {
       const section = rawHtml.slice(dtIdx, dtIdx + 300);
-      // Strip comments and tags to get plain text
       const plain = section
         .replace(/<!--.*?-->/gs, '')
         .replace(/<[^>]+>/g, '')
@@ -109,7 +107,6 @@ const parseCricketScore = ($) => {
         .replace(/&nbsp;/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
-      // plain is now like: "Date & Time: Today, 7:30 PM LOCAL"
       const m = plain.match(/(Today|Tomorrow|[A-Z][a-z]+\s+\d{1,2})[\s,]*(\d{1,2}:\d{2}\s*[AP]M)/i);
       if (m) {
         startTime = `${m[1]}, ${m[2]}`;
@@ -145,6 +142,106 @@ app.get('/score', async (req, res) => {
     res.json(matchData);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch match data. The match may not be live yet.' });
+  }
+});
+
+app.get('/match-detail', async (req, res) => {
+  const { id } = req.query;
+  if (!id) return res.status(400).json({ error: 'Match ID required' });
+
+  try {
+    const html = await fetchHTML(`https://www.cricbuzz.com/live-cricket-scores/${id}/`);
+    const $ = cheerio.load(html);
+
+    const rawH1 = $('h1').first().text().replace(/\s+/g, ' ').trim();
+    const title = rawH1
+      .replace(/\s*-\s*(Live Cricket Score|Commentary).*$/i, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+
+    const metaTitle = $('title').text().replace(/\s+/g, ' ').trim();
+
+    const statusSelectors = [
+      '.cb-text-complete', '.cb-text-inprogress', '.cb-text-stumps',
+      '.cb-text-lunch', '.cb-text-inningsbreak', '.cb-text-tea',
+      '.cb-text-rain', '.cb-text-wetoutfield', '.cb-text-delay',
+      '.cb-col.cb-col-100.cb-min-stts', '.cb-min-stts',
+      '.cb-col.cb-col-100.cb-font-18.cb-toss-sts'
+    ];
+    let update = '';
+    for (const sel of statusSelectors) {
+      const t = $(sel).first().text().trim();
+      if (t) { update = t; break; }
+    }
+
+    const tossInfo = $('.cb-toss-sts').first().text().trim();
+    const isLive = [
+      '.cb-text-inprogress', '.cb-text-stumps', '.cb-text-lunch',
+      '.cb-text-tea', '.cb-text-inningsbreak'
+    ].some(s => $(s).first().text().trim() !== '');
+
+    let startTime = '';
+    try {
+      const dtIdx = html.indexOf('Date &amp; Time:');
+      if (dtIdx > -1) {
+        const section = html.slice(dtIdx, dtIdx + 300)
+          .replace(/<!--.*?-->/gs, '').replace(/<[^>]+>/g, '')
+          .replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+        const m = section.match(/(Today|Tomorrow|[A-Z][a-z]+\s+\d{1,2})[\s,]*(\d{1,2}:\d{2}\s*[AP]M)/i);
+        if (m) startTime = `${m[1]}, ${m[2]}`;
+      }
+    } catch (_) {}
+
+    const batters = [];
+    const bowlers = [];
+    let parsingBowlers = false;
+
+    $('[class*="scorecard-bat-grid"]').each((_, el) => {
+      const cells = $(el).children().map((_, c) => $(c).text().replace(/\s+/g, ' ').trim()).get();
+      if (!cells.length) return;
+
+      const first = cells[0] || '';
+      if (/^Batter/i.test(first) || first === 'R') { parsingBowlers = false; return; }
+      if (/^Bowler/i.test(first) || first === 'O') { parsingBowlers = true; return; }
+      if (/^Key Stats/i.test(first)) return;
+
+      if (parsingBowlers && cells.length >= 2) {
+        bowlers.push({
+          name: first.replace(/\s*\*\s*$/, '').trim(),
+          overs: cells[1] || '', maidens: cells[2] || '',
+          runs: cells[3] || '', wickets: cells[4] || '', econ: cells[5] || ''
+        });
+      } else if (!parsingBowlers && cells.length >= 2) {
+        batters.push({
+          name: first.replace(/\s*\*\s*$/, '').trim(),
+          runs: cells[1] || '', balls: cells[2] || '',
+          fours: cells[3] || '', sixes: cells[4] || '', sr: cells[5] || '',
+          onStrike: first.includes('*')
+        });
+      }
+    });
+
+    const inningsScores = [];
+    $('[class*="cb-font-20"]').each((_, el) => {
+      const t = $(el).text().trim();
+      if (t && /\d/.test(t)) inningsScores.push(t);
+    });
+
+    const effectivelyLive = isLive || batters.length > 0 || bowlers.length > 0;
+
+    res.json({
+      title,
+      metaTitle,
+      update,
+      tossInfo,
+      isLive: effectivelyLive,
+      startTime,
+      batters,
+      bowlers,
+      inningsScores
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch match details' });
   }
 });
 
@@ -199,7 +296,6 @@ app.get('/live-matches', async (req, res) => {
     });
 
     const liveMatches = matches.filter(m => m.category === 'live');
-
     const upcomingMatches = matches.filter(m => m.category === 'upcoming');
 
     const [scoredLive, timedUpcoming] = await Promise.all([
@@ -210,7 +306,13 @@ app.get('/live-matches', async (req, res) => {
             const matchHtml = await fetchHTML(url);
             const $m = cheerio.load(matchHtml);
             const scoreData = parseCricketScore($m);
-            return { ...match, ...scoreData };
+            if (!scoreData.title) {
+              const h1 = $m('h1').first().text().replace(/\s+/g, ' ')
+                .replace(/\s*-\s*(Live Cricket Score|Commentary).*$/i, '').trim();
+              scoreData.title = h1 || match.title;
+            }
+            const metaScore = $m('title').text().replace(/\s+/g, ' ').trim();
+            return { ...match, ...scoreData, metaScore };
           } catch {
             return match;
           }
@@ -223,7 +325,8 @@ app.get('/live-matches', async (req, res) => {
             const matchHtml = await fetchHTML(url);
             const $m = cheerio.load(matchHtml);
             const data = parseCricketScore($m);
-            return { ...match, startTime: data.startTime, tossInfo: data.tossInfo };
+            const metaScore = $m('title').text().replace(/\s+/g, ' ').trim();
+            return { ...match, startTime: data.startTime, tossInfo: data.tossInfo, metaScore };
           } catch {
             return match;
           }
@@ -248,44 +351,233 @@ app.get('/live-matches', async (req, res) => {
   }
 });
 
+const LEAGUE_CONFIG = {
+  ipl: {
+    seriesId: 9241,
+    slug: 'indian-premier-league-2026',
+    name: 'Indian Premier League 2026',
+    shortName: 'IPL 2026',
+    keywords: ['ipl', 'indian premier league', 'kkr', 'mi', 'csk', 'rcb', 'srh', 'dc', 'gt', 'lsg', 'rr', 'pbks',
+      'kolkata', 'mumbai', 'chennai', 'royal challengers', 'sunrisers', 'delhi', 'gujarat', 'lucknow', 'rajasthan', 'punjab']
+  },
+  psl: {
+    seriesId: 11537,
+    slug: 'pakistan-super-league-2026',
+    name: 'Pakistan Super League 2026',
+    shortName: 'PSL 2026',
+    keywords: ['psl', 'pakistan super league', 'karachi', 'lahore', 'quetta', 'peshawar', 'multan', 'islamabad']
+  },
+  county1: {
+    seriesId: 11408,
+    slug: 'county-championship-division-one-2026',
+    name: 'County Championship Division One 2026',
+    shortName: 'County Div 1',
+    keywords: ['county championship', 'county div 1', 'division one', 'surrey', 'kent', 'hampshire', 'lancashire', 'warwickshire', 'yorkshire', 'nottinghamshire', 'worcestershire', 'durham', 'middlesex', 'somerset']
+  },
+  county2: {
+    seriesId: 11416,
+    slug: 'county-championship-division-two-2026',
+    name: 'County Championship Division Two 2026',
+    shortName: 'County Div 2',
+    keywords: ['county div 2', 'division two', 'gloucestershire', 'derbyshire', 'essex', 'leicestershire', 'northamptonshire', 'glamorgan', 'sussex', 'leicestershire']
+  },
+  bpl: {
+    seriesId: 11328,
+    slug: 'bangladesh-premier-league-2025-26',
+    name: 'Bangladesh Premier League 2025-26',
+    shortName: 'BPL 2025-26',
+    keywords: ['bpl', 'bangladesh premier league', 'rangpur', 'chattogram', 'comilla', 'dhaka', 'rajshahi', 'sylhet', 'khulna', 'durdanto', 'royals', 'challengers']
+  },
+  npl: {
+    seriesId: 11190,
+    slug: 'nepal-premier-league-2025',
+    name: 'Nepal Premier League 2025',
+    shortName: 'NPL 2025',
+    keywords: ['npl', 'nepal premier league', 'janakpur', 'pokhara', 'chitwan', 'bagmati', 'lumbini', 'sudurpaschim', 'koshi', 'gandaki']
+  },
+  hundredw: {
+    seriesId: 11504,
+    slug: 'the-hundred-womens-competition-2026',
+    name: "The Hundred Women's 2026",
+    shortName: "Hundred Women's",
+    keywords: ["the hundred", "hundred women", "oval invincibles", "london spirit", "manchester originals", "trent rockets", "southern brave", "welsh fire", "northern superchargers", "birmingham phoenix"]
+  },
+  iccwt20q: {
+    seriesId: 11399,
+    slug: 'icc-womens-t20-world-cup-global-qualifier-2026',
+    name: "ICC Women's T20 WC Qualifier 2026",
+    shortName: "WT20 Qualifier",
+    keywords: ['icc women', 't20 world cup qualifier', 'netherlands', 'scotland', 'thailand', 'nepal', 'zimbabwe', 'bangladesh women', 'ireland women', 'usa women', 'png women', 'namibia']
+  },
+  accwomen: {
+    seriesId: 11452,
+    slug: 'acc-womens-asia-cup-rising-stars-2026',
+    name: "ACC Women's Asia Cup Rising Stars 2026",
+    shortName: "ACC Women's Asia Cup",
+    keywords: ['acc women', 'asia cup rising stars', 'bangladesh women', 'sri lanka women', 'thailand women', 'malaysia women', 'india women', 'pakistan women', 'uae women', 'nepal women']
+  },
+  iccwt20c: {
+    seriesId: 12015,
+    slug: 'icc-womens-t20i-challenge-trophy-2026',
+    name: "ICC Women's T20I Challenge Trophy 2026",
+    shortName: "WT20I Challenge",
+    keywords: ['icc women challenge', 't20i challenge trophy', 'usa women', 'rwanda women', 'nepal women', 'italy women', 'vanuatu women']
+  }
+};
+
+const slugToName = (slug) =>
+  slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+
+const fetchLeagueStandings = async (seriesId, slug) => {
+  const url = `https://www.cricbuzz.com/cricket-series/${seriesId}/${slug}/points-table`;
+  const html = await fetchHTML(url);
+  const $ = cheerio.load(html);
+
+  const teamNames = [];
+  $('a[href*="/cricket-team/"]').each((_, el) => {
+    const href = $(el).attr('href') || '';
+    const m = href.match(/\/cricket-team\/([^/]+)\//);
+    if (m) {
+      const full = slugToName(m[1]);
+      if (!teamNames.find(t => t.full === full)) {
+        teamNames.push({ abbr: $(el).text().trim().replace(/\s*\([^)]+\)\s*$/, ''), full });
+      }
+    }
+  });
+
+  const teams = [];
+  let dataRowIdx = 0;
+  $('.point-table-grid').each((i, row) => {
+    const cells = $(row).find('div[class*="flex"]')
+      .map((_, el) => $(el).text().trim()).get().filter(t => t);
+    const posNum = parseInt(cells[0]);
+    if (cells.length >= 6 && i > 0 && posNum >= 1) {
+      const info = teamNames[dataRowIdx] || { abbr: '?', full: 'Unknown' };
+      if (info.abbr === '?') { dataRowIdx++; return; }
+      teams.push({
+        pos:      parseInt(cells[0]) || dataRowIdx + 1,
+        abbr:     info.abbr,
+        name:     info.full,
+        played:   parseInt(cells[1]) || 0,
+        won:      parseInt(cells[2]) || 0,
+        lost:     parseInt(cells[3]) || 0,
+        noResult: parseInt(cells[4]) || 0,
+        pts:      parseInt(cells[5]) || 0,
+        nrr:      cells[6] || '0.000'
+      });
+      dataRowIdx++;
+    }
+  });
+  return teams;
+};
+
+const fetchLeagueFixtures = async (seriesId, slug) => {
+  const url = `https://www.cricbuzz.com/cricket-series/${seriesId}/${slug}/matches`;
+  const html = await fetchHTML(url);
+  const $ = cheerio.load(html);
+
+  const fixtures = [];
+  const seen = new Set();
+
+  $('a[href*="/live-cricket-scores/"]').each((_, el) => {
+    const href  = $(el).attr('href') || '';
+    const title = $(el).attr('title') || '';
+    const idM   = href.match(/\/live-cricket-scores\/(\d+)\//);
+    if (!idM) return;
+    const id = idM[1];
+    if (seen.has(id)) return;
+    seen.add(id);
+
+    const parts  = title.split(' - ');
+    const name   = (parts[0] || '').trim();
+    const status = (parts[1] || '').trim();
+    if (!name) return;
+
+    const sl = status.toLowerCase();
+    let category = 'upcoming';
+    if (!status || sl === 'live') category = 'live';
+    else if (sl.includes('won') || sl.includes('complete') || sl.includes('tie') || sl.includes('draw') || sl.includes('abandon')) category = 'completed';
+    else if (sl.includes('preview') || sl.includes('upcoming') || sl.includes('scheduled')) category = 'upcoming';
+    else if (sl.includes('stumps') || sl.includes('inprogress') || sl.includes('lunch') || sl.includes('tea')) category = 'live';
+
+    fixtures.push({ id, title: name, status, category });
+  });
+
+  return fixtures;
+};
+
+app.get('/leagues', async (req, res) => {
+  const { league = 'ipl' } = req.query;
+  const config = LEAGUE_CONFIG[league.toLowerCase()];
+  if (!config) return res.status(400).json({ error: `Unknown league. Use: ${Object.keys(LEAGUE_CONFIG).join(', ')}` });
+
+  try {
+    const [standings, fixtures] = await Promise.all([
+      fetchLeagueStandings(config.seriesId, config.slug),
+      fetchLeagueFixtures(config.seriesId, config.slug)
+    ]);
+
+    const formMap = {};
+    [...fixtures].reverse().forEach(f => {
+      if (f.category !== 'completed' || !f.status) return;
+      const result = f.status;
+      const sl = result.toLowerCase();
+
+      let resultType = null;
+      let winner = null;
+      if (/\btied\b/.test(sl)) {
+        resultType = 'T';
+      } else if (/\bdrawn?\b|\bdraw\b/.test(sl)) {
+        resultType = 'D';
+      } else if (/\babandon|\bno result|\brain/.test(sl)) {
+        resultType = 'NR';
+      } else {
+        const winM = result.match(/^(\S+)\s+won/i);
+        if (winM) { resultType = 'WIN'; winner = winM[1].toLowerCase(); }
+      }
+      if (!resultType) return;
+
+      standings.forEach(team => {
+        const abbr = team.abbr.toLowerCase().replace(/\s+/g, '');
+        const fullWords = team.name.toLowerCase().split(/\s+/);
+        const titleL = f.title.toLowerCase();
+        const isInvolved = titleL.includes(abbr) || fullWords.some(w => w.length >= 4 && titleL.includes(w));
+        if (!isInvolved) return;
+        if (!formMap[team.abbr]) formMap[team.abbr] = [];
+        if (formMap[team.abbr].length >= 6) return;
+
+        if (resultType === 'T' || resultType === 'D' || resultType === 'NR') {
+          formMap[team.abbr].push(resultType);
+        } else if (resultType === 'WIN' && winner) {
+          const isWinner = winner.includes(abbr) || fullWords.some(w => w.length >= 3 && winner.includes(w.slice(0, 3)));
+          formMap[team.abbr].push(isWinner ? 'W' : 'L');
+        }
+      });
+    });
+
+    standings.forEach(t => { t.form = (formMap[t.abbr] || []).reverse(); });
+
+    res.json({
+      league: config.name,
+      shortName: config.shortName,
+      standings,
+      fixtures: fixtures.slice(0, 30)
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch league data. Please try again.' });
+  }
+});
+
 const ESPN_TEAM_IDS = {
-  'Afghanistan': 40,
-  'Australia': 2,
-  'Bangladesh': 25,
-  'England': 1,
-  'India': 6,
-  'Ireland': 29,
-  'New Zealand': 5,
-  'Pakistan': 7,
-  'South Africa': 3,
-  'Sri Lanka': 8,
-  'West Indies': 4,
-  'Zimbabwe': 9,
-  'Scotland': 30,
-  'Netherlands': 15,
-  'Nepal': 32,
-  'Oman': 28,
-  'USA': 11,
-  'Canada': 17,
-  'Kenya': 26,
-  'UAE': 8,
-  'Namibia': 37,
-  'Papua New Guinea': 27
+  'Afghanistan': 40, 'Australia': 2, 'Bangladesh': 25, 'England': 1,
+  'India': 6, 'Ireland': 29, 'New Zealand': 5, 'Pakistan': 7,
+  'South Africa': 3, 'Sri Lanka': 8, 'West Indies': 4, 'Zimbabwe': 9,
+  'Scotland': 30, 'Netherlands': 15, 'Nepal': 32, 'Oman': 28,
+  'USA': 11, 'Canada': 17, 'Kenya': 26, 'UAE': 8, 'Namibia': 37, 'Papua New Guinea': 27
 };
 
-const ESPN_FORMAT_CLASS = {
-  'test': 1,
-  'odi': 2,
-  't20': 3,
-  't20i': 3
-};
-
-const FORMAT_LABEL = {
-  'test': 'Test',
-  'odi': 'ODI',
-  't20': 'T20I',
-  't20i': 'T20I'
-};
+const ESPN_FORMAT_CLASS = { 'test': 1, 'odi': 2, 't20': 3, 't20i': 3 };
+const FORMAT_LABEL = { 'test': 'Test', 'odi': 'ODI', 't20': 'T20I', 't20i': 'T20I' };
 
 const fetchH2HStats = async (teamId, oppId, formatClass) => {
   const url = `https://stats.espncricinfo.com/ci/engine/stats/index.html?class=${formatClass};filter=advanced;opposition=${oppId};team=${teamId};template=results;type=team`;
@@ -390,6 +682,23 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Resource not found' });
 });
 
-app.listen(PORT, () => {
-  console.log(`StatBat server running on port ${PORT}`);
+process.on('uncaughtException', (err) => {
+  console.error('There was an uncaught error:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log(`StatBat server running on http://localhost:${PORT}`);
+  console.log(`Also accessible on your network at http://127.0.0.1:${PORT}`);
+});
+
+server.on('error', (e) => {
+  if (e.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} is already in use. Please kill the other process or change the PORT.`);
+  } else {
+    console.error(`Server error: ${e.message}`);
+  }
 });
