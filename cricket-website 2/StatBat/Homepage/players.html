@@ -1,0 +1,1220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StatBat - Player Investigation</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* ── Player-page additions (kept consistent with the case-file aesthetic) ── */
+    .format-toggle, .discipline-toggle {
+      display: inline-flex;
+      gap: 0;
+      border: 1.5px solid rgba(96,69,41,0.35);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .fmt-btn, .disc-btn {
+      font-family: "Courier New", monospace;
+      font-size: 0.75rem;
+      font-weight: bold;
+      letter-spacing: 0.08em;
+      background: transparent;
+      border: none;
+      border-right: 1px solid rgba(96,69,41,0.3);
+      padding: 5px 14px;
+      cursor: pointer;
+      color: #6b5233;
+      transition: background 0.15s, color 0.15s;
+    }
+    .fmt-btn:last-child, .disc-btn:last-child { border-right: none; }
+    .fmt-btn:hover, .disc-btn:hover { background: rgba(240,90,40,0.1); color: #f05a28; }
+    .fmt-btn.fmt-active, .disc-btn.disc-active { background: #f05a28; color: #fff; }
+
+    .toggle-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 14px;
+      margin-top: 12px;
+    }
+
+    /* Polaroid photo frame for the player */
+    .player-photo-frame {
+      width: 180px;
+      max-width: 100%;
+      background: #fffaf0;
+      padding: 12px 12px 36px;
+      box-shadow: 3px 3px 0 rgba(60,40,20,0.18);
+      transform: rotate(-1.2deg);
+      position: relative;
+      margin: 6px auto 14px;
+      border: 1px solid rgba(96,69,41,0.25);
+    }
+    .player-photo-frame.tilt-right { transform: rotate(1.5deg); }
+    .player-photo-frame .photo-tape {
+      position: absolute;
+      top: -10px;
+      width: 60px;
+      height: 18px;
+      background: rgba(220,200,140,0.65);
+      border: 1px dashed rgba(140,100,55,0.4);
+    }
+    .player-photo-frame .photo-tape-left { left: 14px; transform: rotate(-7deg); }
+    .player-photo-frame .photo-tape-right { right: 14px; transform: rotate(8deg); }
+
+    .photo-window {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      background: #efe7d3;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border: 1px solid rgba(96,69,41,0.25);
+    }
+    .photo-window img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .photo-window .photo-fallback {
+      font-family: "Courier New", monospace;
+      font-size: 0.78rem;
+      color: #8a7050;
+      text-align: center;
+      padding: 8px;
+    }
+    .photo-caption {
+      position: absolute;
+      bottom: 6px;
+      left: 12px;
+      right: 12px;
+      font-family: "Courier New", monospace;
+      font-size: 0.78rem;
+      color: #5a4220;
+      text-align: center;
+      letter-spacing: 0.06em;
+    }
+
+    /* Personal info chips */
+    .info-chip-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 7px;
+      margin: 10px 0 14px;
+    }
+    .info-chip {
+      font-family: "Courier New", monospace;
+      font-size: 0.74rem;
+      background: rgba(255, 245, 220, 0.6);
+      border: 1px dashed rgba(140,100,55,0.4);
+      border-radius: 3px;
+      padding: 5px 8px;
+      line-height: 1.3;
+    }
+    .info-chip-label {
+      color: #9e8060;
+      font-size: 0.66rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      display: block;
+      margin-bottom: 2px;
+    }
+    .info-chip-value { color: #2f261c; font-weight: bold; }
+
+    /* Verdict banner styled like teams.html */
+    .verdict-banner {
+      margin: 22px 0 10px;
+      padding: 14px 20px;
+      background: rgba(255, 252, 240, 0.97);
+      border: 2px solid rgba(96,69,41,0.4);
+      border-radius: 4px;
+      box-shadow: 3px 3px 0 rgba(60,40,20,0.1);
+      font-family: "Courier New", monospace;
+    }
+    .verdict-label {
+      font-size: 0.66rem;
+      font-weight: bold;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #9e8060;
+      margin-bottom: 6px;
+    }
+    .verdict-team {
+      font-size: 1.15rem;
+      font-weight: bold;
+      color: #2f261c;
+    }
+    .verdict-detail {
+      font-size: 0.78rem;
+      color: #6b5233;
+      margin-top: 4px;
+    }
+    .verdict-even { color: #4a7db5; }
+
+    /* Recent form mini-table */
+    .recent-form {
+      margin-top: 16px;
+      border: 1px dashed rgba(140,100,55,0.35);
+      padding: 10px 12px;
+      background: rgba(255, 248, 232, 0.55);
+      border-radius: 3px;
+    }
+    .recent-form-title {
+      font-family: "Courier New", monospace;
+      font-size: 0.72rem;
+      font-weight: bold;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #6b5233;
+      margin-bottom: 8px;
+    }
+    .recent-form-row {
+      display: grid;
+      grid-template-columns: 1.2fr 0.7fr 0.7fr 1fr;
+      font-family: "Courier New", monospace;
+      font-size: 0.74rem;
+      color: #2f261c;
+      padding: 3px 0;
+      border-bottom: 1px dotted rgba(140,100,55,0.18);
+    }
+    .recent-form-row:last-child { border-bottom: none; }
+    .recent-form-row.header {
+      color: #9e8060;
+      font-size: 0.66rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      border-bottom: 1px solid rgba(140,100,55,0.35);
+      padding-bottom: 4px;
+      margin-bottom: 3px;
+    }
+    .recent-form-empty {
+      font-family: "Courier New", monospace;
+      font-size: 0.74rem;
+      color: #9e8060;
+      font-style: italic;
+    }
+
+    /* ICC ranking row */
+    .ranking-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .ranking-pill {
+      font-family: "Courier New", monospace;
+      font-size: 0.72rem;
+      padding: 4px 9px;
+      border: 1px solid rgba(140,100,55,0.35);
+      border-radius: 3px;
+      background: rgba(255, 252, 240, 0.7);
+      color: #2f261c;
+    }
+    .ranking-pill strong { color: #f05a28; }
+    .ranking-pill .pill-label {
+      color: #9e8060;
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-right: 5px;
+    }
+
+    /* Country flag mini in card header */
+    .country-flag-mini {
+      width: 22px;
+      height: 16px;
+      object-fit: cover;
+      border: 1px solid rgba(96,69,41,0.4);
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    /* Format-not-available message */
+    .stat-empty {
+      font-family: "Courier New", monospace;
+      font-size: 0.82rem;
+      color: #9e8060;
+      font-style: italic;
+      padding: 14px 0;
+      text-align: center;
+    }
+
+    /* Source note */
+    .source-note {
+      font-family: "Courier New", monospace;
+      font-size: 0.67rem;
+      color: #b09070;
+      text-align: right;
+      margin-top: 10px;
+      font-style: italic;
+    }
+
+    /* Roster loading hint */
+    .roster-loading-hint {
+      font-family: "Courier New", monospace;
+      font-size: 0.74rem;
+      color: #9e8060;
+      margin-top: 6px;
+      font-style: italic;
+    }
+
+    /* Discipline section heading */
+    .stat-section-heading {
+      font-family: "Courier New", monospace;
+      font-size: 0.7rem;
+      font-weight: bold;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #6b5233;
+      border-bottom: 1px solid rgba(140,100,55,0.25);
+      padding-bottom: 6px;
+      margin: 14px 0 8px;
+    }
+
+    /* Bio paragraph with clamp + show-more */
+    .bio-block {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 0.86rem;
+      line-height: 1.55;
+      color: #2f261c;
+      background: rgba(255, 248, 232, 0.45);
+      border: 1px dashed rgba(140,100,55,0.35);
+      border-radius: 3px;
+      padding: 10px 12px;
+      margin-top: 6px;
+      white-space: pre-wrap;
+    }
+    .bio-block.is-clamped {
+      max-height: 7.5em;
+      overflow: hidden;
+      position: relative;
+    }
+    .bio-block.is-clamped::after {
+      content: "";
+      position: absolute;
+      bottom: 0; left: 0; right: 0; height: 2.6em;
+      background: linear-gradient(to bottom, rgba(255,248,232,0), rgba(255,248,232,0.95));
+      pointer-events: none;
+    }
+    .bio-toggle {
+      background: none;
+      border: none;
+      color: #f05a28;
+      font-family: "Courier New", monospace;
+      font-size: 0.74rem;
+      font-weight: bold;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      padding: 4px 0 0;
+    }
+    .bio-toggle:hover { text-decoration: underline; }
+    .bio-empty {
+      font-family: "Courier New", monospace;
+      font-size: 0.78rem;
+      color: #9e8060;
+      font-style: italic;
+    }
+
+    /* Teams-played-for pill cloud */
+    .teams-cloud {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .team-pill {
+      font-family: "Courier New", monospace;
+      font-size: 0.72rem;
+      padding: 3px 8px;
+      border: 1px solid rgba(140,100,55,0.4);
+      background: rgba(255, 252, 240, 0.7);
+      border-radius: 12px;
+      color: #2f261c;
+    }
+    .team-pill.is-national {
+      background: rgba(240,90,40,0.12);
+      border-color: rgba(240,90,40,0.45);
+      color: #b14010;
+      font-weight: bold;
+    }
+
+    /* Career milestones */
+    .career-milestones {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .career-row {
+      border: 1px dashed rgba(140,100,55,0.35);
+      background: rgba(255, 248, 232, 0.45);
+      border-radius: 3px;
+      padding: 8px 10px;
+      font-family: "Courier New", monospace;
+      font-size: 0.74rem;
+      color: #2f261c;
+    }
+    .career-row .cr-fmt {
+      display: inline-block;
+      font-size: 0.66rem;
+      letter-spacing: 0.12em;
+      background: #f05a28;
+      color: #fff;
+      padding: 2px 7px;
+      border-radius: 2px;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+    .career-row .cr-line {
+      display: grid;
+      grid-template-columns: 70px 1fr;
+      gap: 4px;
+      margin-top: 4px;
+      font-size: 0.72rem;
+    }
+    .career-row .cr-key {
+      color: #9e8060;
+      text-transform: uppercase;
+      font-size: 0.62rem;
+      letter-spacing: 0.1em;
+    }
+
+    /* News list */
+    .news-list { margin-top: 6px; }
+    .news-item {
+      display: block;
+      font-family: Georgia, serif;
+      font-size: 0.82rem;
+      line-height: 1.4;
+      color: #2f261c;
+      text-decoration: none;
+      padding: 7px 0;
+      border-bottom: 1px dotted rgba(140,100,55,0.25);
+    }
+    .news-item:last-child { border-bottom: none; }
+    .news-item:hover { color: #f05a28; }
+    .news-item::before {
+      content: "›";
+      color: #f05a28;
+      margin-right: 6px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+
+<body class="teams-page">
+  <header class="top-bar">
+    <img src="images/Logo.png" class="logo" alt="StatBat logo">
+    <div class="page-header-title">StatBat | Player Investigation</div>
+  </header>
+
+  <nav class="nav-bar">
+    <a href="index.html">Home</a>
+    <a href="teams.html">Teams</a>
+    <a href="players.html" class="active">Players</a>
+    <a href="leagues.html">Leagues</a>
+  </nav>
+
+  <div class="page">
+    <div class="container h2h-container">
+
+      <h1 class="h2h-title">Player Head-to-Head</h1>
+
+      <!-- SELECTOR -->
+      <div class="selector-card">
+        <div class="selector-stamp">Player Comparison</div>
+        <p class="selector-note">Select two cricketers to compare their career numbers, recent form, and ICC standing.</p>
+
+        <div class="selector-row">
+          <label class="selector-field">
+            <span class="selector-label">Player A</span>
+            <select id="player1" class="country-select" disabled>
+              <option>Loading rosters…</option>
+            </select>
+          </label>
+
+          <span class="vs-label">VS</span>
+
+          <label class="selector-field">
+            <span class="selector-label">Player B</span>
+            <select id="player2" class="country-select" disabled>
+              <option>Loading rosters…</option>
+            </select>
+          </label>
+        </div>
+
+        <div id="roster-hint" class="roster-loading-hint">Pulling player squads from Cricbuzz — first load takes a moment…</div>
+
+        <div class="toggle-row">
+          <span class="selector-label" style="white-space:nowrap;">Format:</span>
+          <div class="format-toggle">
+            <button class="fmt-btn fmt-active" data-fmt="Test">Test</button>
+            <button class="fmt-btn" data-fmt="ODI">ODI</button>
+            <button class="fmt-btn" data-fmt="T20">T20I</button>
+            <button class="fmt-btn" data-fmt="IPL">IPL</button>
+          </div>
+          <span class="selector-label" style="white-space:nowrap;margin-left:8px;">Discipline:</span>
+          <div class="discipline-toggle">
+            <button class="disc-btn disc-active" data-disc="batting">Batting</button>
+            <button class="disc-btn" data-disc="bowling">Bowling</button>
+          </div>
+          <button class="search-btn" id="compare-btn" style="margin-left:auto;">Compare</button>
+        </div>
+      </div>
+
+      <div id="loading" style="display:none;">
+        <div class="loading">
+          <div class="loading-spinner"></div>
+          Loading player profiles…
+        </div>
+      </div>
+
+      <div id="error" class="error-msg" style="display:none;"></div>
+
+      <!-- RESULTS -->
+      <div id="results">
+        <div class="result-card">
+          <div class="result-header">
+            <div class="file-stamp">Comparison</div>
+            <div id="comparison-title" class="result-title">Player A vs Player B</div>
+            <div class="file-meta"><span id="comparison-updated">Updated: --</span></div>
+          </div>
+
+          <div class="case-summary">
+            <div class="case-summary-label">Summary</div>
+            <p id="comparison-summary">Pick two players, choose a format and discipline, then hit Compare to open the file.</p>
+          </div>
+
+          <div id="verdict-banner" class="verdict-banner" style="display:none;">
+            <div class="verdict-label">Edge</div>
+            <div id="verdict-team" class="verdict-team">--</div>
+            <div id="verdict-detail" class="verdict-detail"></div>
+          </div>
+
+          <div class="comparison-grid">
+            <!-- PLAYER A -->
+            <div class="team-stat-card">
+              <div class="file-tab">Player A</div>
+
+              <div class="player-photo-frame">
+                <span class="photo-tape photo-tape-left"></span>
+                <span class="photo-tape photo-tape-right"></span>
+                <div class="photo-window">
+                  <img id="player-a-photo" alt="" style="display:none;">
+                  <div id="player-a-photo-fallback" class="photo-fallback">No photo on file</div>
+                </div>
+                <div id="player-a-caption" class="photo-caption">—</div>
+              </div>
+
+              <h3 id="player-a-name" style="text-align:center;margin-bottom:4px;">Player A</h3>
+              <div id="player-a-meta" style="text-align:center;font-family:'Courier New',monospace;font-size:0.78rem;color:#6b5233;margin-bottom:8px;">—</div>
+
+              <div class="info-chip-list" id="player-a-info"></div>
+
+              <div class="stat-section-heading">Biography</div>
+              <div id="player-a-bio"></div>
+
+              <div class="stat-section-heading" id="player-a-stat-heading">Career Stats</div>
+              <div id="player-a-stats" class="stat-list"></div>
+
+              <div class="stat-section-heading">ICC Rankings</div>
+              <div id="player-a-rankings" class="ranking-strip"></div>
+
+              <div class="stat-section-heading">Career Milestones</div>
+              <div id="player-a-career" class="career-milestones"></div>
+
+              <div class="stat-section-heading">Recent Form</div>
+              <div id="player-a-form"></div>
+
+              <div class="stat-section-heading">Teams Played For</div>
+              <div id="player-a-teams" class="teams-cloud"></div>
+
+              <div class="stat-section-heading">In The News</div>
+              <div id="player-a-news" class="news-list"></div>
+
+              <div style="margin-top:10px;text-align:right;">
+                <a id="player-a-profile-link" class="bio-toggle" target="_blank" rel="noopener" href="#" style="display:none;">Open full Cricbuzz profile ↗</a>
+              </div>
+            </div>
+
+            <!-- PLAYER B -->
+            <div class="team-stat-card">
+              <div class="file-tab">Player B</div>
+
+              <div class="player-photo-frame tilt-right">
+                <span class="photo-tape photo-tape-left"></span>
+                <span class="photo-tape photo-tape-right"></span>
+                <div class="photo-window">
+                  <img id="player-b-photo" alt="" style="display:none;">
+                  <div id="player-b-photo-fallback" class="photo-fallback">No photo on file</div>
+                </div>
+                <div id="player-b-caption" class="photo-caption">—</div>
+              </div>
+
+              <h3 id="player-b-name" style="text-align:center;margin-bottom:4px;">Player B</h3>
+              <div id="player-b-meta" style="text-align:center;font-family:'Courier New',monospace;font-size:0.78rem;color:#6b5233;margin-bottom:8px;">—</div>
+
+              <div class="info-chip-list" id="player-b-info"></div>
+
+              <div class="stat-section-heading">Biography</div>
+              <div id="player-b-bio"></div>
+
+              <div class="stat-section-heading" id="player-b-stat-heading">Career Stats</div>
+              <div id="player-b-stats" class="stat-list"></div>
+
+              <div class="stat-section-heading">ICC Rankings</div>
+              <div id="player-b-rankings" class="ranking-strip"></div>
+
+              <div class="stat-section-heading">Career Milestones</div>
+              <div id="player-b-career" class="career-milestones"></div>
+
+              <div class="stat-section-heading">Recent Form</div>
+              <div id="player-b-form"></div>
+
+              <div class="stat-section-heading">Teams Played For</div>
+              <div id="player-b-teams" class="teams-cloud"></div>
+
+              <div class="stat-section-heading">In The News</div>
+              <div id="player-b-news" class="news-list"></div>
+
+              <div style="margin-top:10px;text-align:right;">
+                <a id="player-b-profile-link" class="bio-toggle" target="_blank" rel="noopener" href="#" style="display:none;">Open full Cricbuzz profile ↗</a>
+              </div>
+            </div>
+          </div>
+
+          <div class="case-notes">
+            <h3>Notes</h3>
+            <ul id="case-notes-list">
+              <li>Select two players and click Compare to see their head-to-head profile.</li>
+            </ul>
+          </div>
+
+          <div id="source-note" class="source-note" style="display:none;">Source: Cricbuzz player profiles</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+  /* ════════════════════════════════════════════════════════════════
+     PLAYER COMPARISON - StatBat
+     - Loads rosters per country once on page load (cached server-side)
+     - Renders a polished case-file style head-to-head with format
+       (Test/ODI/T20I/IPL) and discipline (Batting/Bowling) toggles.
+  ════════════════════════════════════════════════════════════════ */
+
+  // Map between display format and the keys returned by the API
+  // (Cricbuzz uses "T20" for T20I; we keep both keys in case)
+  const FMT_TO_API_KEYS = {
+    'Test': ['Test'],
+    'ODI':  ['ODI'],
+    'T20':  ['T20', 'T20I'],
+    'IPL':  ['IPL']
+  };
+  const FMT_DISPLAY = { 'Test':'Test', 'ODI':'ODI', 'T20':'T20I', 'IPL':'IPL' };
+
+  // Country → flag code (ISO-style, used by flagcdn.com)
+  const COUNTRY_FLAG = {
+    'India':'in', 'Australia':'au', 'England':'gb-eng', 'Pakistan':'pk',
+    'South Africa':'za', 'New Zealand':'nz', 'Sri Lanka':'lk',
+    'West Indies':null, 'Bangladesh':'bd', 'Afghanistan':'af',
+    'Zimbabwe':'zw', 'Ireland':'ie'
+  };
+  const flagUrl = (c, w=40) => COUNTRY_FLAG[c] ? `https://flagcdn.com/w${w}/${COUNTRY_FLAG[c]}.png` : '';
+
+  // Stats considered for each discipline.
+  // higher = bigger number is better
+  // lower  = smaller number is better (e.g. bowling average)
+  // showOnly = display value but don't compare for the verdict
+  const BATTING_STAT_DEFS = [
+    { key:'Matches',  label:'Matches Played', dir:'higher' },
+    { key:'Innings',  label:'Innings Batted', dir:'higher' },
+    { key:'Runs',     label:'Runs Scored',    dir:'higher', weighted:0.20 },
+    { key:'Highest',  label:'Highest Score',  dir:'higher', parser:'topScore' },
+    { key:'Average',  label:'Batting Average',dir:'higher', weighted:0.30 },
+    { key:'SR',       label:'Strike Rate',    dir:'higher', weighted:0.25 },
+    { key:'100s',     label:'Centuries',      dir:'higher', weighted:0.15 },
+    { key:'50s',      label:'Half-Centuries', dir:'higher', weighted:0.05 },
+    { key:'Fours',    label:'Fours',          dir:'higher' },
+    { key:'Sixes',    label:'Sixes',          dir:'higher', weighted:0.05 },
+    { key:'Not Out',  label:'Not Outs',       dir:'higher' },
+    { key:'Ducks',    label:'Ducks',          dir:'lower' }
+  ];
+  const BOWLING_STAT_DEFS = [
+    { key:'Matches',  label:'Matches Played', dir:'higher' },
+    { key:'Innings',  label:'Innings Bowled', dir:'higher' },
+    { key:'Balls',    label:'Balls Bowled',   dir:'higher' },
+    { key:'Wickets',  label:'Wickets',        dir:'higher', weighted:0.40 },
+    { key:'Avg',      label:'Bowling Average',dir:'lower',  weighted:0.20 },
+    { key:'Eco',      label:'Economy',        dir:'lower',  weighted:0.20 },
+    { key:'SR',       label:'Bowling SR',     dir:'lower',  weighted:0.10 },
+    { key:'BBI',      label:'Best Bowling',   dir:'showOnly' },
+    { key:'BBM',      label:'Best Match',     dir:'showOnly' },
+    { key:'Maidens',  label:'Maidens',        dir:'higher' },
+    { key:'4w',       label:'4-Wicket Hauls', dir:'higher', weighted:0.05 },
+    { key:'5w',       label:'5-Wicket Hauls', dir:'higher', weighted:0.05 },
+    { key:'10w',      label:'10-Wicket Match',dir:'higher' }
+  ];
+
+  let selectedFormat = 'Test';
+  let selectedDiscipline = 'batting';
+  let rosters = {};   // country → [players]
+  let playerMap = {}; // id → { id, slug, name, country }
+
+  /* ── DOM refs ── */
+  const els = {
+    p1Sel:    document.getElementById('player1'),
+    p2Sel:    document.getElementById('player2'),
+    rosterHint: document.getElementById('roster-hint'),
+    loading:  document.getElementById('loading'),
+    error:    document.getElementById('error'),
+    title:    document.getElementById('comparison-title'),
+    updated:  document.getElementById('comparison-updated'),
+    summary:  document.getElementById('comparison-summary'),
+    verdictBox: document.getElementById('verdict-banner'),
+    verdictTeam:document.getElementById('verdict-team'),
+    verdictDet: document.getElementById('verdict-detail'),
+    a: {
+      photo:       document.getElementById('player-a-photo'),
+      photoFb:     document.getElementById('player-a-photo-fallback'),
+      caption:     document.getElementById('player-a-caption'),
+      name:        document.getElementById('player-a-name'),
+      meta:        document.getElementById('player-a-meta'),
+      info:        document.getElementById('player-a-info'),
+      bio:         document.getElementById('player-a-bio'),
+      statHeading: document.getElementById('player-a-stat-heading'),
+      stats:       document.getElementById('player-a-stats'),
+      form:        document.getElementById('player-a-form'),
+      rankings:    document.getElementById('player-a-rankings'),
+      career:      document.getElementById('player-a-career'),
+      teams:       document.getElementById('player-a-teams'),
+      news:        document.getElementById('player-a-news'),
+      profileLink: document.getElementById('player-a-profile-link')
+    },
+    b: {
+      photo:       document.getElementById('player-b-photo'),
+      photoFb:     document.getElementById('player-b-photo-fallback'),
+      caption:     document.getElementById('player-b-caption'),
+      name:        document.getElementById('player-b-name'),
+      meta:        document.getElementById('player-b-meta'),
+      info:        document.getElementById('player-b-info'),
+      bio:         document.getElementById('player-b-bio'),
+      statHeading: document.getElementById('player-b-stat-heading'),
+      stats:       document.getElementById('player-b-stats'),
+      form:        document.getElementById('player-b-form'),
+      rankings:    document.getElementById('player-b-rankings'),
+      career:      document.getElementById('player-b-career'),
+      teams:       document.getElementById('player-b-teams'),
+      news:        document.getElementById('player-b-news'),
+      profileLink: document.getElementById('player-b-profile-link')
+    },
+    notes:    document.getElementById('case-notes-list'),
+    source:   document.getElementById('source-note'),
+    cmpBtn:   document.getElementById('compare-btn')
+  };
+
+  /* ── ROSTER LOAD ── */
+  async function loadRosters() {
+    try {
+      const res = await fetch('/players-all');
+      if (!res.ok) throw new Error('Could not load rosters');
+      const data = await res.json();
+      rosters = data.grouped || {};
+      Object.values(rosters).forEach(list => {
+        list.forEach(p => { playerMap[p.id] = p; });
+      });
+      populateDropdowns(data.teams || Object.keys(rosters));
+      els.rosterHint.textContent =
+        `Loaded ${data.total} players from ${Object.keys(rosters).length} countries.`;
+    } catch (err) {
+      els.rosterHint.textContent = 'Could not load player rosters. Try refreshing the page.';
+      els.rosterHint.style.color = '#7a2020';
+    }
+  }
+
+  function populateDropdowns(teamOrder) {
+    [els.p1Sel, els.p2Sel].forEach((sel, idx) => {
+      sel.innerHTML = `<option value="">Select Player ${idx === 0 ? 'A' : 'B'}</option>`;
+      teamOrder.forEach(country => {
+        const list = rosters[country] || [];
+        if (!list.length) return;
+        const og = document.createElement('optgroup');
+        og.label = country;
+        list.forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.id;
+          opt.dataset.slug = p.slug;
+          opt.textContent = p.name;
+          og.appendChild(opt);
+        });
+        sel.appendChild(og);
+      });
+      sel.disabled = false;
+    });
+    // Default selections — Kohli vs Babar Azam if available, otherwise first two
+    presetDefaults();
+  }
+
+  function presetDefaults() {
+    const findByName = (n) => {
+      for (const [, list] of Object.entries(rosters)) {
+        const hit = list.find(p => p.name === n);
+        if (hit) return hit.id;
+      }
+      return null;
+    };
+    const a = findByName('Virat Kohli');
+    const b = findByName('Joe Root') || findByName('Steve Smith') || findByName('Babar Azam');
+    if (a) els.p1Sel.value = a;
+    if (b) els.p2Sel.value = b;
+  }
+
+  /* ── TOGGLES ── */
+  function initToggles() {
+    document.querySelectorAll('.fmt-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.fmt-btn').forEach(b => b.classList.remove('fmt-active'));
+        btn.classList.add('fmt-active');
+        selectedFormat = btn.dataset.fmt;
+        if (lastCompare) renderComparison(lastCompare);
+      });
+    });
+    document.querySelectorAll('.disc-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.disc-btn').forEach(b => b.classList.remove('disc-active'));
+        btn.classList.add('disc-active');
+        selectedDiscipline = btn.dataset.disc;
+        if (lastCompare) renderComparison(lastCompare);
+      });
+    });
+    els.cmpBtn.addEventListener('click', fetchComparison);
+  }
+
+  /* ── HELPERS ── */
+  function pickFormatStats(stats) {
+    if (!stats) return null;
+    const keys = FMT_TO_API_KEYS[selectedFormat] || [];
+    for (const k of keys) {
+      if (stats[k]) return stats[k];
+    }
+    return null;
+  }
+
+  function parseNumber(v, key) {
+    if (v === null || v === undefined || v === '') return null;
+    if (key === 'Highest') {
+      // "254" or "183*" → numeric portion
+      const m = String(v).match(/(\d+)/);
+      return m ? parseFloat(m[1]) : null;
+    }
+    if (typeof v === 'number') return v;
+    const n = parseFloat(String(v).replace(/,/g, ''));
+    return isNaN(n) ? null : n;
+  }
+
+  function formatStatValue(key, raw) {
+    if (raw === null || raw === undefined || raw === '') return '--';
+    return String(raw);
+  }
+
+  function statStatus(aRaw, bRaw, def) {
+    if (def.dir === 'showOnly') return { cls:'is-even', tag:'INFO' };
+    const a = parseNumber(aRaw, def.key);
+    const b = parseNumber(bRaw, def.key);
+    if (a === null || b === null || a === b) return { cls:'is-even', tag:'Even' };
+    const aWins = def.dir === 'higher' ? a > b : a < b;
+    return aWins
+      ? { cls:'is-leading',  tag:'Lead'  }
+      : { cls:'is-trailing', tag:'Trail' };
+  }
+
+  function renderStatList(container, mineStats, oppStats, defs, fmtMissing) {
+    container.innerHTML = '';
+    if (fmtMissing) {
+      container.innerHTML = `<div class="stat-empty">No ${FMT_DISPLAY[selectedFormat]} ${selectedDiscipline} data on file for this player.</div>`;
+      return;
+    }
+    defs.forEach(def => {
+      const row = document.createElement('div');
+      const lbl = document.createElement('span');
+      const val = document.createElement('span');
+      const tag = document.createElement('span');
+      const st  = statStatus(mineStats[def.key], oppStats[def.key], def);
+      row.className = `stat-row ${st.cls}`;
+      lbl.className = 'stat-label';
+      val.className = 'stat-value';
+      tag.className = 'stat-tag';
+      lbl.textContent = def.label;
+      val.textContent = formatStatValue(def.key, mineStats[def.key]);
+      tag.textContent = st.tag;
+      row.append(lbl, val, tag);
+      container.appendChild(row);
+    });
+  }
+
+  function renderInfoChips(container, p) {
+    container.innerHTML = '';
+    const personal = p.personal || {};
+    // Preferred order first, then any other keys the API returned
+    const order = ['Role', 'Batting Style', 'Bowling Style', 'Born', 'Birth Place', 'Height', 'Nickname'];
+    const keys = [...order.filter(k => personal[k]),
+                  ...Object.keys(personal).filter(k => !order.includes(k))];
+    keys.forEach(key => {
+      const v = personal[key];
+      if (!v) return;
+      const chip = document.createElement('div');
+      chip.className = 'info-chip';
+      chip.innerHTML = `<span class="info-chip-label">${escapeHtml(key)}</span><span class="info-chip-value">${escapeHtml(v)}</span>`;
+      container.appendChild(chip);
+    });
+    if (!container.children.length) {
+      container.innerHTML = '<div class="info-chip" style="grid-column:1/-1;">No personal info on file.</div>';
+    }
+  }
+
+  function renderForm(container, p) {
+    container.innerHTML = '';
+    const list = (selectedDiscipline === 'batting')
+      ? (p.recentForm && p.recentForm.batting) || []
+      : (p.recentForm && p.recentForm.bowling) || [];
+
+    if (!list.length) {
+      container.innerHTML = `<div class="recent-form-empty">No recent ${selectedDiscipline} entries.</div>`;
+      return;
+    }
+
+    const header = document.createElement('div');
+    header.className = 'recent-form-row header';
+    header.innerHTML = (selectedDiscipline === 'batting')
+      ? `<span>Score</span><span style="text-align:right;">Vs</span><span style="text-align:right;">Fmt</span><span style="text-align:right;">Date</span>`
+      : `<span>Figures</span><span style="text-align:right;">Vs</span><span style="text-align:right;">Fmt</span><span style="text-align:right;">Date</span>`;
+    container.appendChild(header);
+
+    list.forEach(item => {
+      const row = document.createElement('div');
+      row.className = 'recent-form-row';
+      const main = (selectedDiscipline === 'batting') ? item.score : item.figures;
+      row.innerHTML = `<span><strong>${escapeHtml(main || '--')}</strong></span>` +
+                      `<span style="text-align:right;">${escapeHtml(item.opponent || '--')}</span>` +
+                      `<span style="text-align:right;">${escapeHtml(item.format || '--')}</span>` +
+                      `<span style="text-align:right;">${escapeHtml(item.date || '--')}</span>`;
+      container.appendChild(row);
+    });
+  }
+
+  function renderRankings(container, rankings) {
+    container.innerHTML = '';
+    if (!rankings || !Object.keys(rankings).length) {
+      container.innerHTML = '<div class="recent-form-empty">No ICC rankings on file.</div>';
+      return;
+    }
+    Object.entries(rankings).forEach(([fmt, r]) => {
+      const pill = document.createElement('div');
+      pill.className = 'ranking-pill';
+      pill.innerHTML = `<span class="pill-label">${escapeHtml(fmt)}</span>` +
+                       `<strong>#${escapeHtml(r.current || '--')}</strong>` +
+                       (r.best ? ` <span style="color:#9e8060;">(best #${escapeHtml(r.best)})</span>` : '');
+      container.appendChild(pill);
+    });
+  }
+
+  function renderBio(container, p) {
+    container.innerHTML = '';
+    if (!p.bio || p.bio.length < 40) {
+      container.innerHTML = '<div class="bio-empty">No biographical sketch available for this player.</div>';
+      return;
+    }
+    const block = document.createElement('div');
+    block.className = 'bio-block is-clamped';
+    block.textContent = p.bio;
+    const btn = document.createElement('button');
+    btn.className = 'bio-toggle';
+    btn.textContent = 'Read full biography ↓';
+    btn.addEventListener('click', () => {
+      const clamped = block.classList.toggle('is-clamped');
+      btn.textContent = clamped ? 'Read full biography ↓' : 'Collapse ↑';
+    });
+    container.append(block, btn);
+  }
+
+  function renderTeams(container, p) {
+    container.innerHTML = '';
+    const list = p.teamsList || [];
+    if (!list.length) {
+      container.innerHTML = '<div class="bio-empty">No teams on file.</div>';
+      return;
+    }
+    const nationalSet = new Set([
+      'India','Australia','England','Pakistan','South Africa','New Zealand',
+      'Sri Lanka','West Indies','Bangladesh','Afghanistan','Zimbabwe','Ireland',
+      'Scotland','Netherlands','Nepal','USA','UAE','Oman','Hong Kong','Namibia',
+      'Kenya','Canada','PNG','Bermuda'
+    ]);
+    list.forEach(team => {
+      const pill = document.createElement('span');
+      pill.className = 'team-pill' + (nationalSet.has(team) ? ' is-national' : '');
+      pill.textContent = team;
+      container.appendChild(pill);
+    });
+  }
+
+  function renderCareerInfo(container, p) {
+    container.innerHTML = '';
+    const ci = p.careerInfo || {};
+    const order = ['TEST','ODI','T20I','IPL','CL T20'];
+    let any = false;
+    order.forEach(fmt => {
+      const entry = ci[fmt];
+      if (!entry || (!entry.debut && !entry.lastPlayed)) return;
+      any = true;
+      const row = document.createElement('div');
+      row.className = 'career-row';
+      let html = `<span class="cr-fmt">${fmt}</span>`;
+      if (entry.debut) {
+        html += `<div class="cr-line"><span class="cr-key">Debut</span>` +
+                `<span>vs <strong>${escapeHtml(entry.debut.opponent)}</strong> · ${escapeHtml(entry.debut.date)}` +
+                `<br><span style="color:#9e8060;font-size:0.7rem;">${escapeHtml(entry.debut.venue)}</span></span></div>`;
+      }
+      if (entry.lastPlayed) {
+        html += `<div class="cr-line"><span class="cr-key">Last</span>` +
+                `<span>vs <strong>${escapeHtml(entry.lastPlayed.opponent)}</strong> · ${escapeHtml(entry.lastPlayed.date)}` +
+                `<br><span style="color:#9e8060;font-size:0.7rem;">${escapeHtml(entry.lastPlayed.venue)}</span></span></div>`;
+      }
+      row.innerHTML = html;
+      container.appendChild(row);
+    });
+    if (!any) {
+      container.innerHTML = '<div class="bio-empty">No career milestones on file.</div>';
+    }
+  }
+
+  function renderNews(container, p) {
+    container.innerHTML = '';
+    const list = p.news || [];
+    if (!list.length) {
+      container.innerHTML = '<div class="bio-empty">No recent news headlines.</div>';
+      return;
+    }
+    list.forEach(n => {
+      const a = document.createElement('a');
+      a.className = 'news-item';
+      a.href = n.url;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      a.textContent = n.title;
+      container.appendChild(a);
+    });
+  }
+
+  function renderHeaderForPlayer(side, p) {
+    const e = els[side];
+    e.name.textContent = p.name;
+    const metaParts = [];
+    if (p.country) metaParts.push(`<img class="country-flag-mini" src="${flagUrl(p.country)}" alt=""> ${escapeHtml(p.country)}`);
+    if (p.personal && p.personal.Role) metaParts.push(escapeHtml(p.personal.Role));
+    if (p.age) metaParts.push(`Age ${p.age}`);
+    e.meta.innerHTML = metaParts.join(' · ');
+    e.caption.textContent = p.name;
+    if (p.profileUrl) {
+      e.profileLink.href = p.profileUrl;
+      e.profileLink.style.display = 'inline-block';
+    } else {
+      e.profileLink.style.display = 'none';
+    }
+
+    e.photo.style.display = 'none';
+    e.photo.removeAttribute('src');
+    e.photoFb.style.display = 'block';
+    e.photoFb.textContent = 'Loading photo…';
+    if (p.image) {
+      e.photo.onload  = () => { e.photo.style.display = 'block'; e.photoFb.style.display = 'none'; };
+      e.photo.onerror = () => { e.photo.style.display = 'none';  e.photoFb.style.display = 'block'; e.photoFb.textContent = 'No photo on file'; };
+      e.photo.src = p.image;
+    } else {
+      e.photoFb.textContent = 'No photo on file';
+    }
+  }
+
+  function buildVerdict(aStats, bStats, p1, p2, defs) {
+    let aWeighted = 0, bWeighted = 0;
+    let aLead = 0, bLead = 0, even = 0;
+
+    defs.forEach(def => {
+      if (def.dir === 'showOnly') return;
+      const av = parseNumber(aStats[def.key], def.key);
+      const bv = parseNumber(bStats[def.key], def.key);
+      if (av === null || bv === null) return;
+      const aWins = def.dir === 'higher' ? av > bv : av < bv;
+      const bWins = def.dir === 'higher' ? bv > av : bv < av;
+      if (aWins) aLead++; else if (bWins) bLead++; else even++;
+
+      if (def.weighted) {
+        const max = Math.max(Math.abs(av), Math.abs(bv));
+        if (max === 0) return;
+        const aScore = def.dir === 'higher' ? av/max : (av === 0 ? 1 : Math.min(bv,av)/av);
+        const bScore = def.dir === 'higher' ? bv/max : (bv === 0 ? 1 : Math.min(bv,av)/bv);
+        aWeighted += aScore * def.weighted;
+        bWeighted += bScore * def.weighted;
+      }
+    });
+
+    const diff = Math.abs(aWeighted - bWeighted);
+    const closer = diff < 0.04;
+    return { aWeighted, bWeighted, aLead, bLead, even, closer };
+  }
+
+  /* ── MAIN RENDER ── */
+  let lastCompare = null;
+  function renderComparison(compare) {
+    lastCompare = compare;
+    const { player1: p1, player2: p2 } = compare;
+
+    // Headings & names
+    els.title.textContent = `${p1.name} vs ${p2.name}`;
+    els.updated.textContent = `Updated: ${new Date().toLocaleTimeString()}`;
+    els.a.statHeading.textContent = `${FMT_DISPLAY[selectedFormat]} · ${selectedDiscipline === 'batting' ? 'Batting' : 'Bowling'}`;
+    els.b.statHeading.textContent = `${FMT_DISPLAY[selectedFormat]} · ${selectedDiscipline === 'batting' ? 'Batting' : 'Bowling'}`;
+
+    renderHeaderForPlayer('a', p1);
+    renderHeaderForPlayer('b', p2);
+    renderInfoChips(els.a.info, p1);
+    renderInfoChips(els.b.info, p2);
+    renderBio(els.a.bio, p1);
+    renderBio(els.b.bio, p2);
+    renderCareerInfo(els.a.career, p1);
+    renderCareerInfo(els.b.career, p2);
+    renderTeams(els.a.teams, p1);
+    renderTeams(els.b.teams, p2);
+    renderNews(els.a.news, p1);
+    renderNews(els.b.news, p2);
+
+    // Stats
+    const defs = selectedDiscipline === 'batting' ? BATTING_STAT_DEFS : BOWLING_STAT_DEFS;
+    const statsKey = selectedDiscipline === 'batting' ? 'battingStats' : 'bowlingStats';
+    const aStats = pickFormatStats(p1[statsKey]);
+    const bStats = pickFormatStats(p2[statsKey]);
+    const aMissing = !aStats;
+    const bMissing = !bStats;
+
+    renderStatList(els.a.stats, aStats || {}, bStats || {}, defs, aMissing);
+    renderStatList(els.b.stats, bStats || {}, aStats || {}, defs, bMissing);
+
+    // Recent form
+    renderForm(els.a.form, p1);
+    renderForm(els.b.form, p2);
+
+    // Rankings
+    renderRankings(els.a.rankings, p1.rankings);
+    renderRankings(els.b.rankings, p2.rankings);
+
+    // Summary line
+    const role1 = (p1.personal && p1.personal.Role) || 'Cricketer';
+    const role2 = (p2.personal && p2.personal.Role) || 'Cricketer';
+    let summary;
+    if (aMissing && bMissing) {
+      summary = `Neither player has ${FMT_DISPLAY[selectedFormat]} ${selectedDiscipline} data on file. Try a different format or discipline.`;
+    } else if (aStats && bStats) {
+      summary = `${p1.name} (${role1}) vs ${p2.name} (${role2}) — ${FMT_DISPLAY[selectedFormat]} ${selectedDiscipline} comparison across career.`;
+    } else {
+      const present = aStats ? p1.name : p2.name;
+      const absent  = aStats ? p2.name : p1.name;
+      summary = `${present} has ${FMT_DISPLAY[selectedFormat]} ${selectedDiscipline} data; ${absent} does not. Comparison for this view is one-sided.`;
+    }
+    els.summary.textContent = summary;
+
+    // Verdict
+    if (aStats && bStats) {
+      const v = buildVerdict(aStats, bStats, p1, p2, defs);
+      els.verdictBox.style.display = 'block';
+      if (v.closer) {
+        els.verdictTeam.className = 'verdict-team verdict-even';
+        els.verdictTeam.textContent = 'Too close to call';
+        els.verdictDet.textContent =
+          `${p1.name} leads ${v.aLead} stat${v.aLead===1?'':'s'}, ${p2.name} leads ${v.bLead}, ${v.even} even — virtually neck and neck.`;
+      } else {
+        const winner = v.aWeighted > v.bWeighted ? p1 : p2;
+        const loser  = v.aWeighted > v.bWeighted ? p2 : p1;
+        const wLead  = v.aWeighted > v.bWeighted ? v.aLead : v.bLead;
+        const lLead  = v.aWeighted > v.bWeighted ? v.bLead : v.aLead;
+        els.verdictTeam.className = 'verdict-team';
+        els.verdictTeam.textContent = winner.name;
+        els.verdictDet.textContent =
+          `Edges ${loser.name} on the weighted ${FMT_DISPLAY[selectedFormat]} ${selectedDiscipline} score, leading ${wLead} stat${wLead===1?'':'s'} to ${lLead}.`;
+      }
+    } else {
+      els.verdictBox.style.display = 'none';
+    }
+
+    // Notes
+    els.notes.innerHTML = '';
+    addNote(`Career numbers cover all ${FMT_DISPLAY[selectedFormat]} matches recorded on the player's Cricbuzz profile.`);
+    addNote('Lead / Trail / Even tags are computed for each stat with the appropriate "higher is better" or "lower is better" rule.');
+    addNote('Edge prediction blends a weighted score of the most influential stats (e.g. average and strike rate for batting; wickets, average and economy for bowling).');
+    addNote('Recent Form lists the player\'s last 5 international or franchise appearances in the chosen discipline.');
+    if (aMissing || bMissing) {
+      addNote('A "no data on file" notice means Cricbuzz has no career row for this player in that format/discipline.');
+    }
+    els.source.style.display = 'block';
+  }
+
+  function addNote(t) {
+    const li = document.createElement('li');
+    li.textContent = t;
+    els.notes.appendChild(li);
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+    }[c]));
+  }
+
+  /* ── COMPARE ── */
+  async function fetchComparison() {
+    const id1 = els.p1Sel.value;
+    const id2 = els.p2Sel.value;
+    els.error.style.display = 'none';
+
+    if (!id1 || !id2) {
+      els.error.textContent = 'Please select both players.';
+      els.error.style.display = 'block';
+      return;
+    }
+    if (id1 === id2) {
+      els.error.textContent = 'Please pick two different players.';
+      els.error.style.display = 'block';
+      return;
+    }
+
+    const slug1 = (els.p1Sel.options[els.p1Sel.selectedIndex] || {}).dataset?.slug || '';
+    const slug2 = (els.p2Sel.options[els.p2Sel.selectedIndex] || {}).dataset?.slug || '';
+
+    els.loading.style.display = 'block';
+    els.cmpBtn.disabled = true;
+    els.verdictBox.style.display = 'none';
+
+    try {
+      const url = `/player-compare?id1=${encodeURIComponent(id1)}&id2=${encodeURIComponent(id2)}` +
+                  `&slug1=${encodeURIComponent(slug1)}&slug2=${encodeURIComponent(slug2)}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load comparison');
+      renderComparison(data);
+    } catch (err) {
+      els.error.textContent = err.message || 'Could not load comparison data. Please try again.';
+      els.error.style.display = 'block';
+    } finally {
+      els.loading.style.display = 'none';
+      els.cmpBtn.disabled = false;
+    }
+  }
+
+  /* ── INIT ── */
+  initToggles();
+  loadRosters().then(() => {
+    // Auto-run a comparison once the rosters land so the page is useful immediately
+    if (els.p1Sel.value && els.p2Sel.value) fetchComparison();
+  });
+  </script>
+</body>
+</html>
