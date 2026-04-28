@@ -26,7 +26,7 @@ jobs:
         uses: wasmerio/setup-wasmer@v3
 
       - name: Deploy to Wasmer
-        run: wasmer deploy --registry="wasmer.io" --non-interactive
+        run: wasmer deploy --registry="wasmer.io" --non-interactive --owner kubab1610
         working-directory: "cricket-website 2/StatBat"
         env:
           WASMER_TOKEN: ${{ secrets.WASMER_TOKEN }}
