@@ -3,6 +3,9 @@ name = "kubab1610/statbat"
 version = "0.1.0"
 description = "StatBat cricket website"
 
+[dependencies]
+"wasmer/node" = "*"
+
 [[command]]
 name = "start"
 module = "wasmer/node:node"
