@@ -1,3 +1,3 @@
 kind: wasmer.io/App.v0
 name: statbat
-package: kubab1610/statbat@0.1.0
+package: .
